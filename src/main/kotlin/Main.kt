@@ -28,8 +28,8 @@ data class SimulationConfig(
     val count: Int = 500_000,
     val gridSizeX: Int = 64,
     val gridSizeY: Int = 64,
-    val worldWidth: Float = (screenBounds.height * 70).toFloat(),
-    val worldHeight: Float = (screenBounds.height * 70).toFloat(),
+    val worldWidth: Float = 100_000f,//(screenBounds.width * 70).toFloat(),
+    val worldHeight: Float = 100_000f,//(screenBounds.height * 70).toFloat(),
     val potentialSmoothingIterations: Int = 2,
     val g: Float = 1f,
     val centerX: Float = worldWidth / 2,
@@ -38,7 +38,7 @@ data class SimulationConfig(
     val maxRadius: Float = (worldHeight * 0.4).toFloat(),
     val massFrom: Int = 1,
     val massUntil: Int = 5,
-    val dropOutOfBounds: Boolean = true,
+    val dropOutOfBounds: Boolean = false // TODO,
 )
 
 class ParticleMeshSimulation(
@@ -95,28 +95,34 @@ class ParticleMeshSimulation(
         }
 
         // Разбиваем частицы по чанкам
+        val totalCount = particleX.size
         val availableProc = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
-        val chunkSize = (particleX.size / availableProc).coerceAtLeast(1)
+        val chunkSize = (totalCount / availableProc).coerceAtLeast(1)
 
         // Локальные массивы для massGrid суммирования
         val localResults = Array(availableProc) {
             Array(config.gridSizeX) { FloatArray(config.gridSizeY) }
         }
 
-        // Распределение масс по сетке без синхронизации, используя локальные массивы
-        val massDistributionTasks = (particleX.indices step chunkSize).mapIndexed { index, start ->
+        // Формируем список диапазонов частиц для каждого потока
+        val ranges = (0 until availableProc).map { p ->
+            val start = p * chunkSize
+            val end = if (p == availableProc - 1) totalCount else (start + chunkSize).coerceAtMost(totalCount)
+            start until end
+        }
+
+        // Теперь создаём ровно availableProc задач, каждая обрабатывает свой диапазон
+        val massDistributionTasks = ranges.mapIndexed { index, range ->
             async(Dispatchers.Default) {
-                val end = (start + chunkSize).coerceAtMost(particleX.size)
                 val localMass = localResults[index]
                 val cwx = cellWidth
                 val cwy = cellHeight
                 val gXmax = config.gridSizeX - 1
                 val gYmax = config.gridSizeY - 1
 
-                for (i in start until end) {
+                for (i in range) {
                     val px = particleX[i]
                     val py = particleY[i]
-                    // Быстрая версия clamp и floorToInt
                     var cx = (px / cwx).toInt()
                     var cy = (py / cwy).toInt()
                     if (cx < 0) cx = 0 else if (cx > gXmax) cx = gXmax
@@ -125,7 +131,9 @@ class ParticleMeshSimulation(
                 }
             }
         }
+
         massDistributionTasks.awaitAll()
+
 
         // Суммируем все локальные результаты в massGrid
         for (x in 0 until config.gridSizeX) {
@@ -294,9 +302,9 @@ fun main() {
 
 class SimulationApp : Application() {
     override fun start(primaryStage: Stage) {
-        val screenBounds = Screen.getPrimary().bounds
-        val screenWidth = screenBounds.height // TODO width
-        val screenHeight = screenBounds.height
+        val screenBounds = Screen.getPrimary().visualBounds
+        val screenWidth = 1000.0//screenBounds.width // TODO width
+        val screenHeight = 1000.0//screenBounds.height
 
         val canvas = Canvas(screenWidth, screenHeight)
         val gc = canvas.graphicsContext2D
@@ -306,7 +314,7 @@ class SimulationApp : Application() {
 
         primaryStage.title = "Particle Mesh Simulation"
         primaryStage.scene = scene
-        primaryStage.isFullScreen = true
+        primaryStage.isFullScreen = false
         primaryStage.show()
 
         val config = SimulationConfig(screenBounds)
