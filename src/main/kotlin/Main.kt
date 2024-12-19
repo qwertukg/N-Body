@@ -25,26 +25,24 @@ data class Particle(
 
 data class SimulationConfig(
     val screenBounds: Rectangle2D,
-    val count: Int = 500_000,
+    val count: Int = 1_000_000,
     val gridSizeX: Int = 64,
     val gridSizeY: Int = 64,
-    val worldWidth: Float = 100_000f,//(screenBounds.width * 70).toFloat(),
-    val worldHeight: Float = 100_000f,//(screenBounds.height * 70).toFloat(),
+    val worldWidth: Float = 100000f,//(screenBounds.width * 70).toFloat(),
+    val worldHeight: Float = 100000f,//(screenBounds.height * 70).toFloat(),
     val potentialSmoothingIterations: Int = 2,
-    val g: Float = 1f,
+    val g: Float = 10f,
     val centerX: Float = worldWidth / 2,
     val centerY: Float = worldHeight / 2,
     val minRadius: Float = 0f,
     val maxRadius: Float = (worldHeight * 0.4).toFloat(),
     val massFrom: Int = 1,
     val massUntil: Int = 5,
-    val dropOutOfBounds: Boolean = false // TODO,
+    val dropOutOfBounds: Boolean = true,
+    val fullScreen: Boolean = false,
 )
 
-class ParticleMeshSimulation(
-    val config: SimulationConfig,
-    private val initialParticles: List<Particle>
-) {
+class ParticleMeshSimulation(val config: SimulationConfig, private val initialParticles: List<Particle>) {
     lateinit var particleX: FloatArray
     lateinit var particleY: FloatArray
     lateinit var particleVx: FloatArray
@@ -292,7 +290,16 @@ class ParticleMeshSimulation(
                     newCount++
                 }
             }
+
+            // Сжимаем массивы до newCount, фактически удаляя вышедшие частицы
+            particleX = particleX.copyOf(newCount)
+            particleY = particleY.copyOf(newCount)
+            particleVx = particleVx.copyOf(newCount)
+            particleVy = particleVy.copyOf(newCount)
+            particleM = particleM.copyOf(newCount)
+            particleR = particleR.copyOf(newCount)
         }
+
     }
 }
 
@@ -302,9 +309,10 @@ fun main() {
 
 class SimulationApp : Application() {
     override fun start(primaryStage: Stage) {
-        val screenBounds = Screen.getPrimary().visualBounds
-        val screenWidth = 1000.0//screenBounds.width // TODO width
-        val screenHeight = 1000.0//screenBounds.height
+
+        val screenBounds = Screen.getPrimary().bounds
+        val screenWidth = screenBounds.height // TODO width
+        val screenHeight = screenBounds.height
 
         val canvas = Canvas(screenWidth, screenHeight)
         val gc = canvas.graphicsContext2D
@@ -312,23 +320,24 @@ class SimulationApp : Application() {
         val root = StackPane(canvas)
         val scene = Scene(root, screenWidth, screenHeight)
 
-        primaryStage.title = "Particle Mesh Simulation"
-        primaryStage.scene = scene
-        primaryStage.isFullScreen = false
-        primaryStage.show()
-
         val config = SimulationConfig(screenBounds)
         val particles = generateCircularOrbitParticles(config)
 
         val simulation = ParticleMeshSimulation(config, particles)
         simulation.initSimulation()
 
+        primaryStage.title = "Particle Mesh Simulation"
+        primaryStage.scene = scene
+        primaryStage.isFullScreen = config.fullScreen
+        primaryStage.show()
+
+
         // Добавляем обработчик клика левой кнопкой мыши
         scene.setOnMouseClicked {
             val closestIndex = findClosestParticle(simulation, it.x.toFloat(), it.y.toFloat(), canvas.width, canvas.height)
             when (it.button) {
-                MouseButton.PRIMARY -> simulation.setParticleMass(closestIndex, 500_000f)
-                MouseButton.SECONDARY -> simulation.setParticleMass(closestIndex, -500_000f)
+                MouseButton.PRIMARY -> simulation.setParticleMass(closestIndex, 100_000f)
+                MouseButton.SECONDARY -> simulation.setParticleMass(closestIndex, -100_000f)
                 else -> simulation.initSimulation()
             }
         }
@@ -336,6 +345,7 @@ class SimulationApp : Application() {
         object : AnimationTimer() {
             val scope = CoroutineScope(Dispatchers.Default)
             override fun handle(now: Long) {
+                println("N size: ${simulation.particleX.size}") // TODO
                 scope.launch {
                     simulation.step()
                     withContext(Dispatchers.JavaFx) {
@@ -364,8 +374,8 @@ fun generateCircularOrbitParticles(config: SimulationConfig): List<Particle> {
         val px = config.centerX + r * cos(angle).toFloat()
         val py = config.centerY + r * sin(angle).toFloat()
 
-        val m = Random.nextInt(config.massFrom, config.massUntil).toFloat()
-        val pr = sqrt(m)
+        val m = 1f//Random.nextInt(config.massFrom, config.massUntil).toFloat()
+        val pr = 1f//sqrt(m)
 
         particles.add(Particle(px, py, 0f, 0f, m, pr))
         sumM += m
