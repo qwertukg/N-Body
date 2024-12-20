@@ -29,7 +29,7 @@ data class Particle(
 // Configuration for the simulation
 data class SimulationConfig(
     val screenBounds: Rectangle2D,
-    val count: Int = 300000,
+    val count: Int = 300_000,
     val gridSizeX: Int = 64,
     val gridSizeY: Int = 64,
     val gridSizeZ: Int = 64,
@@ -95,26 +95,27 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         particleR = FloatArray(totalCount) { particles[it].r }
     }
 
-    suspend fun step() = coroutineScope {
-        // Clear mass grid
+    suspend fun step() = withContext(Dispatchers.Default) {
+        // Все действия в рамках одного корутинного контекста
+
+        // Очистка massGrid
         massGrid.forEach { plane -> plane.forEach { row -> row.fill(0f) } }
 
         val totalCount = particleX.size
-        val chunkSize = (totalCount / Runtime.getRuntime().availableProcessors().coerceAtLeast(1)).coerceAtLeast(1)
+        val processorCount = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val chunkSize = (totalCount / processorCount).coerceAtLeast(1)
 
-        // Distribute mass
-        (0 until totalCount step chunkSize).map {
-            async(Dispatchers.Default) {
-                for (i in it until (it + chunkSize).coerceAtMost(totalCount)) {
-                    val cx = (particleX[i] / cellWidth).toInt().coerceIn(0, config.gridSizeX - 1)
-                    val cy = (particleY[i] / cellHeight).toInt().coerceIn(0, config.gridSizeY - 1)
-                    val cz = (particleZ[i] / cellDepth).toInt().coerceIn(0, config.gridSizeZ - 1)
-                    massGrid[cx][cy][cz] += particleM[i]
-                }
+        // Распределение масс
+        (0 until totalCount step chunkSize).forEach { start ->
+            for (i in start until (start + chunkSize).coerceAtMost(totalCount)) {
+                val cx = (particleX[i] / cellWidth).toInt().coerceIn(0, config.gridSizeX - 1)
+                val cy = (particleY[i] / cellHeight).toInt().coerceIn(0, config.gridSizeY - 1)
+                val cz = (particleZ[i] / cellDepth).toInt().coerceIn(0, config.gridSizeZ - 1)
+                massGrid[cx][cy][cz] += particleM[i]
             }
-        }.awaitAll()
+        }
 
-        // Calculate potential
+        // Вычисляем потенциал
         for (x in 0 until config.gridSizeX) {
             for (y in 0 until config.gridSizeY) {
                 for (z in 0 until config.gridSizeZ) {
@@ -123,7 +124,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
             }
         }
 
-        // Smooth potential
+        // Сглаживание потенциала
         repeat(config.potentialSmoothingIterations) {
             for (x in 1 until config.gridSizeX - 1) {
                 for (y in 1 until config.gridSizeY - 1) {
@@ -139,32 +140,31 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
             }
         }
 
-        // Update velocities and positions
-        (0 until totalCount step chunkSize).map {
-            async(Dispatchers.Default) {
-                for (i in it until (it + chunkSize).coerceAtMost(totalCount)) {
-                    val cx = (particleX[i] / cellWidth).toInt().coerceIn(1, config.gridSizeX - 2)
-                    val cy = (particleY[i] / cellHeight).toInt().coerceIn(1, config.gridSizeY - 2)
-                    val cz = (particleZ[i] / cellDepth).toInt().coerceIn(1, config.gridSizeZ - 2)
+        // Обновление скоростей и координат частиц
+        (0 until totalCount step chunkSize).forEach { start ->
+            for (i in start until (start + chunkSize).coerceAtMost(totalCount)) {
+                val cx = (particleX[i] / cellWidth).toInt().coerceIn(1, config.gridSizeX - 2)
+                val cy = (particleY[i] / cellHeight).toInt().coerceIn(1, config.gridSizeY - 2)
+                val cz = (particleZ[i] / cellDepth).toInt().coerceIn(1, config.gridSizeZ - 2)
 
-                    val dVdx = (potentialGrid[cx + 1][cy][cz] - potentialGrid[cx - 1][cy][cz]) / (2 * cellWidth)
-                    val dVdy = (potentialGrid[cx][cy + 1][cz] - potentialGrid[cx][cy - 1][cz]) / (2 * cellHeight)
-                    val dVdz = (potentialGrid[cx][cy][cz + 1] - potentialGrid[cx][cy][cz - 1]) / (2 * cellDepth)
+                val dVdx = (potentialGrid[cx + 1][cy][cz] - potentialGrid[cx - 1][cy][cz]) / (2 * cellWidth)
+                val dVdy = (potentialGrid[cx][cy + 1][cz] - potentialGrid[cx][cy - 1][cz]) / (2 * cellHeight)
+                val dVdz = (potentialGrid[cx][cy][cz + 1] - potentialGrid[cx][cy][cz - 1]) / (2 * cellDepth)
 
-                    particleVx[i] -= dVdx
-                    particleVy[i] -= dVdy
-                    particleVz[i] -= dVdz
+                particleVx[i] -= dVdx
+                particleVy[i] -= dVdy
+                particleVz[i] -= dVdz
 
-                    particleX[i] = (particleX[i] + particleVx[i]).coerceIn(0f, config.worldWidth)
-                    particleY[i] = (particleY[i] + particleVy[i]).coerceIn(0f, config.worldHeight)
-                    particleZ[i] = (particleZ[i] + particleVz[i]).coerceIn(0f, config.worldDepth)
-                }
+                particleX[i] = (particleX[i] + particleVx[i]).coerceIn(0f, config.worldWidth)
+                particleY[i] = (particleY[i] + particleVy[i]).coerceIn(0f, config.worldHeight)
+                particleZ[i] = (particleZ[i] + particleVz[i]).coerceIn(0f, config.worldDepth)
             }
-        }.awaitAll()
+        }
 
-        // Удаляем частицы, вышедшие за пределы мира
+        // Удаляем частицы, вышедшие за пределы мира - тоже в этом же контексте
         dropOutOfBounce()
     }
+
 
     fun draw2D(gc: GraphicsContext) {
         gc.fill = Color.BLACK
@@ -256,13 +256,19 @@ class SimulationApp : Application() {
         // Добавляем обработчик клика левой кнопкой мыши
         scene.controller(simulation, canvas)
 
+        val scope = CoroutineScope(Dispatchers.Default)
+        var currentJob: Job? = null
         object : AnimationTimer() {
-            val scope = CoroutineScope(Dispatchers.Default)
             override fun handle(now: Long) {
-                println("N: ${simulation.particleVx.size}") // TODO
-                scope.launch {
-                    simulation.step()
+                // Если предыдущий шаг еще выполняется, пропускаем текущий кадр
+                if (currentJob?.isActive == true) return
 
+                // Выводим текущий размер массива
+                println("N: ${simulation.particleVx.size}")
+
+                // Запускаем новый шаг симуляции только после завершения предыдущего
+                currentJob = scope.launch {
+                    simulation.step()
                     withContext(Dispatchers.JavaFx) {
                         simulation.draw2D(gc)
                     }
@@ -370,10 +376,6 @@ class SimulationApp : Application() {
 
             MouseButton.PRIMARY -> simulation.setParticleMass(closestIndex, 100_000f)
             MouseButton.SECONDARY -> {
-                //simulation.setParticleMass(closestIndex, -100_000f)
-//                simulation.config.centerX = centerX
-//                simulation.config.centerY = centerY
-//                simulation.config.centerZ = centerZ
                 val particles = generateParticlesCircle(simulation.config)
                 simulation.initSimulation(particles)
             }
