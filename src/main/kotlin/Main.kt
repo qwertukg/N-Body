@@ -37,7 +37,7 @@ data class SimulationConfig(
     val worldHeight: Float = 100_000f,
     val worldDepth: Float = 100_000f,
     val potentialSmoothingIterations: Int = 2,
-    val g: Float = 10f,
+    var g: Float = 10f,
     var centerX: Float = (worldWidth*0.5).toFloat(),
     var centerY: Float = (worldHeight*0.5).toFloat(),
     var centerZ: Float = (worldDepth*0.5).toFloat(),
@@ -330,7 +330,7 @@ class SimulationApp : Application() {
         val gc = canvas.graphicsContext2D
 
         // Генерируем частицы начальным способом (предполагается, что функция существует)
-        val particles = generateParticlesCircle(config)
+        val particles = generateParticlesCircle(config, config.centerX, config.centerY, config.centerZ)
 
         val simulation = ParticleMeshSimulation(config)
         simulation.initSimulation(particles)
@@ -344,7 +344,8 @@ class SimulationApp : Application() {
         primaryStage.show()
 
         // Настройка обработчика взаимодействия с пользователем (предполагается, что функция существует)
-        scene.controller(simulation, canvas)
+        //scene.controller(simulation, canvas)
+        scene.controllerCreateBodyGroup(simulation, canvas)
 
         // Коррутинный scope для выполнения шагов симуляции
         val scope = CoroutineScope(Dispatchers.Default)
@@ -357,7 +358,7 @@ class SimulationApp : Application() {
                 if (currentJob?.isActive == true) return
 
                 // Вывод текущего количества частиц для отладки
-                println("Particle Count: ${simulation.particleX.size}")
+                println("X:${simulation.particleX.last()}, Y:${simulation.particleY.last()}, Z:${simulation.particleZ.last()}")
 
                 // Запуск нового шага симуляции
                 currentJob = scope.launch {
@@ -374,7 +375,7 @@ class SimulationApp : Application() {
 
 }
 
-fun generateParticlesCircle(config: SimulationConfig): List<Particle> {
+fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: Float): List<Particle> {
     var sumM = 0.0
     var sumMx = 0.0
     var sumMy = 0.0
@@ -385,9 +386,9 @@ fun generateParticlesCircle(config: SimulationConfig): List<Particle> {
         val angle1 = Random.nextDouble(0.0, 2 * PI)
         val angle2 = Random.nextDouble(0.0, PI)
 
-        val x = config.centerX + (r * cos(angle1) * sin(angle2)).toFloat()
-        val y = config.centerY + (r * sin(angle1) * sin(angle2)).toFloat()
-        val z = config.centerZ + (r * cos(angle2)).toFloat()
+        val x = cx + (r * cos(angle1) * sin(angle2)).toFloat()
+        val y = cy + (r * sin(angle1) * sin(angle2)).toFloat()
+        val z = cz + (r * cos(angle2)).toFloat()
 
         val m = Random.nextDouble(config.massFrom, config.massUntil).toFloat()
         val vx = 0f
@@ -473,14 +474,14 @@ fun Scene.controller(simulation: ParticleMeshSimulation, canvas: Canvas) = setOn
 
         MouseButton.PRIMARY -> simulation.setParticleMass(closestIndex, 200_000f)
         MouseButton.SECONDARY -> {
-            val particles = generateParticlesCircle(simulation.config)
+            val particles = generateParticlesCircle(simulation.config, simulation.config.centerX, simulation.config.centerY, simulation.config.centerZ)
             simulation.initSimulation(particles)
         }
         else -> {
             simulation.config.centerX = centerX
             simulation.config.centerY = centerY
             simulation.config.centerZ = centerZ
-            val particles = generateParticlesCircle(simulation.config)
+            val particles = generateParticlesCircle(simulation.config, simulation.config.centerX, simulation.config.centerY, simulation.config.centerZ)
             simulation.initSimulation(particles)
         }
     }
@@ -522,3 +523,64 @@ fun findClosestParticle(
 fun main() {
     Application.launch(SimulationApp::class.java)
 }
+
+fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: Canvas) {
+    val sens = 100
+    var initialMouseX = 0.0
+    var initialMouseY = 0.0
+    val config = simulation.config
+
+    var baseXPositions = FloatArray(0)
+    var baseYPositions = FloatArray(0)
+    var baseZPositions = FloatArray(0)
+
+    val g = config.g
+
+    // Преобразование экранных координат в мировые координаты при заданном Z
+    fun screenToWorldXY(screenX: Double, screenY: Double, currentZ: Float): Pair<Float, Float> {
+        val scale = min(canvas.width / config.worldWidth, canvas.height / config.worldHeight)
+        val halfW = config.worldWidth * 0.5f
+        val halfH = config.worldHeight * 0.5f
+        val zFactor = 1.0 / (1.0 + (currentZ / config.worldDepth) * config.fov)
+        val invZFactor = 1.0 / zFactor
+        val worldX = (((screenX / scale) - halfW) * invZFactor + halfW).toFloat()
+        val worldY = (((screenY / scale) - halfH) * invZFactor + halfH).toFloat()
+        return Pair(worldX, worldY)
+    }
+
+    setOnMousePressed { event ->
+        if (event.isPrimaryButtonDown) {
+            val (dx, dy) = screenToWorldXY(event.sceneX, event.sceneY, config.centerZ)
+            val particles = generateParticlesCircle(config, dx, dy, config.centerZ)
+            simulation.initSimulation(particles)
+            baseXPositions = simulation.particleX.copyOf()
+            baseYPositions = simulation.particleY.copyOf()
+            baseZPositions = simulation.particleZ.copyOf()
+            initialMouseX = event.sceneX
+            initialMouseY = event.sceneY
+        }
+    }
+
+    setOnMouseDragged { event ->
+        if (!event.isControlDown) {
+            val dx = (event.sceneX - initialMouseX) * sens
+            val dy = (event.sceneY - initialMouseY) * sens
+            for (i in 0 until simulation.particleX.size) {
+                simulation.particleX[i] = baseXPositions[i] + dx.toFloat()
+                simulation.particleY[i] = baseYPositions[i] + dy.toFloat()
+            }
+        } else {
+            val dy = (event.sceneY - initialMouseY) * sens * 2
+            for (i in 0 until simulation.particleX.size) {
+                simulation.particleZ[i] = baseZPositions[i] + dy.toFloat()
+            }
+        }
+    }
+
+    setOnMouseReleased { event ->
+        //config.g = g
+    }
+}
+
+
+
