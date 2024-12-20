@@ -29,7 +29,7 @@ data class Particle(
 // Configuration for the simulation
 data class SimulationConfig(
     val screenBounds: Rectangle2D,
-    val count: Int = 300_000,
+    val count: Int = 300000,
     val gridSizeX: Int = 64,
     val gridSizeY: Int = 64,
     val gridSizeZ: Int = 64,
@@ -41,13 +41,15 @@ data class SimulationConfig(
     var centerX: Float = (worldWidth*0.5).toFloat(),
     var centerY: Float = (worldHeight*0.5).toFloat(),
     var centerZ: Float = (worldDepth*0.5).toFloat(),
-    val minRadius: Double = worldHeight * 0.02,
+    val minRadius: Double = worldHeight * 0.01,
     val maxRadius: Double = worldHeight * 0.1,
     val massFrom: Double = 1.9,
     val massUntil: Double = 2.0,
-    val dropOutOfBounds: Boolean = false,
+    val isDropOutOfBounds: Boolean = false,
     val fov: Double = 1.0,
-    val boxSize: Double = worldHeight * 0.1
+    val boxSize: Double = worldHeight * 0.1,
+    val magicConst: Double = PI,
+    val isFullScreen: Boolean = false
 )
 
 // Main simulation class
@@ -189,7 +191,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
     suspend fun dropOutOfBounce() = withContext(Dispatchers.Default) {
         // Удаление частиц, вышедших за пределы мира
         // Выполняется после отрисовки
-        if (config.dropOutOfBounds) {
+        if (config.isDropOutOfBounds) {
             var newCount = 0
             val ww = config.worldWidth
             val wh = config.worldHeight
@@ -248,7 +250,7 @@ class SimulationApp : Application() {
 
         primaryStage.title = "3D Particle Simulation"
         primaryStage.scene = scene
-        primaryStage.isFullScreen = true
+        primaryStage.isFullScreen = config.isFullScreen
         primaryStage.show()
 
         // Добавляем обработчик клика левой кнопкой мыши
@@ -305,7 +307,7 @@ class SimulationApp : Application() {
 
         // Применяем скорости
         val g = config.g
-        val magicConst = (PI).toFloat() // TODO
+        val magicConst = (config.magicConst).toFloat() // TODO
 
         for (i in particles.indices) {
             val p = particles[i]
@@ -369,9 +371,9 @@ class SimulationApp : Application() {
             MouseButton.PRIMARY -> simulation.setParticleMass(closestIndex, 100_000f)
             MouseButton.SECONDARY -> {
                 //simulation.setParticleMass(closestIndex, -100_000f)
-                simulation.config.centerX = centerX
-                simulation.config.centerY = centerY
-                simulation.config.centerZ = centerZ
+//                simulation.config.centerX = centerX
+//                simulation.config.centerY = centerY
+//                simulation.config.centerZ = centerZ
                 val particles = generateParticlesCircle(simulation.config)
                 simulation.initSimulation(particles)
             }
@@ -379,7 +381,7 @@ class SimulationApp : Application() {
                 simulation.config.centerX = centerX
                 simulation.config.centerY = centerY
                 simulation.config.centerZ = centerZ
-                val particles = generateParticlesBox(simulation.config)
+                val particles = generateParticlesCircle(simulation.config)
                 simulation.initSimulation(particles)
             }
         }
