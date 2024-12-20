@@ -1,16 +1,12 @@
 import javafx.animation.AnimationTimer
 import javafx.application.Application
 import javafx.geometry.Rectangle2D
-import javafx.scene.Group
-import javafx.scene.PerspectiveCamera
 import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.input.MouseButton
 import javafx.scene.layout.StackPane
 import javafx.scene.paint.Color
-import javafx.scene.paint.PhongMaterial
-import javafx.scene.shape.Sphere
 import javafx.stage.Screen
 import javafx.stage.Stage
 import kotlinx.coroutines.*
@@ -42,14 +38,16 @@ data class SimulationConfig(
     val worldDepth: Float = 100_000f,
     val potentialSmoothingIterations: Int = 2,
     val g: Float = 10f,
-    val centerX: Float = worldWidth / 2,
-    val centerY: Float = worldHeight / 2,
-    val centerZ: Float = worldDepth / 2,
-    val minRadius: Float = 0f,
-    val maxRadius: Float = (worldHeight * 0.1).toFloat(),
-    val massFrom: Int = 1,
-    val massUntil: Int = 1,
-    val dropOutOfBounds: Boolean = true
+    var centerX: Float = (worldWidth*0.5).toFloat(),
+    var centerY: Float = (worldHeight*0.5).toFloat(),
+    var centerZ: Float = (worldDepth*0.5).toFloat(),
+    val minRadius: Double = worldHeight * 0.02,
+    val maxRadius: Double = worldHeight * 0.1,
+    val massFrom: Double = 1.9,
+    val massUntil: Double = 2.0,
+    val dropOutOfBounds: Boolean = false,
+    val fov: Double = 1.0,
+    val boxSize: Double = worldHeight * 0.1
 )
 
 // Main simulation class
@@ -161,6 +159,9 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                 }
             }
         }.awaitAll()
+
+        // Удаляем частицы, вышедшие за пределы мира
+        dropOutOfBounce()
     }
 
     fun draw2D(gc: GraphicsContext) {
@@ -168,32 +169,24 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         gc.fillRect(0.0, 0.0, gc.canvas.width, gc.canvas.height)
 
         val scale = min(gc.canvas.width / config.worldWidth, gc.canvas.height / config.worldHeight)
+        val fov = config.fov // Field of view, adjust this value to control perspective depth
 
         for (i in particleX.indices) {
-            val screenX = particleX[i] * scale
-            val screenY = particleY[i] * scale
-            val size = particleR[i] * (1f - particleZ[i] / config.worldDepth) // Simple depth scaling
+            val depthFactor = 1.0 / (1.0 + (particleZ[i] / config.worldDepth) * fov)
+
+            // Calculate adjusted screen positions based on depth
+            val screenX = ((particleX[i] - config.worldWidth / 2) * depthFactor + config.worldWidth / 2) * scale
+            val screenY = ((particleY[i] - config.worldHeight / 2) * depthFactor + config.worldHeight / 2) * scale
+
+            // Apply perspective scaling to size
+            val size = particleR[i] * depthFactor
 
             gc.fill = Color.WHITE
-            gc.fillOval(screenX, screenY, size.toDouble(), size.toDouble())
-        }
-
-        dropOutOfBounce()
-    }
-
-    fun draw3D(group: Group) {
-        group.children.clear()
-        for (i in particleX.indices) {
-            val sphere = Sphere(particleR[i].toDouble())
-            sphere.material = PhongMaterial(Color.WHITE)
-            sphere.translateX = particleX[i].toDouble()
-            sphere.translateY = particleY[i].toDouble()
-            sphere.translateZ = particleZ[i].toDouble()
-            group.children.add(sphere)
+            gc.fillOval(screenX, screenY, size, size)
         }
     }
 
-    fun dropOutOfBounce() {
+    suspend fun dropOutOfBounce() = withContext(Dispatchers.Default) {
         // Удаление частиц, вышедших за пределы мира
         // Выполняется после отрисовки
         if (config.dropOutOfBounds) {
@@ -246,7 +239,7 @@ class SimulationApp : Application() {
         val canvas = Canvas(screenBounds.height, screenBounds.height)
         val gc = canvas.graphicsContext2D
 
-        val particles = generateParticles(config)
+        val particles = generateParticlesCircle(config)
         val simulation = ParticleMeshSimulation(config)
         simulation.initSimulation(particles)
 
@@ -267,7 +260,9 @@ class SimulationApp : Application() {
                 println("N: ${simulation.particleVx.size}") // TODO
                 scope.launch {
                     simulation.step()
+
                     withContext(Dispatchers.JavaFx) {
+                        simulation.draw2D(gc)
                         simulation.draw2D(gc)
                     }
                 }
@@ -275,54 +270,14 @@ class SimulationApp : Application() {
         }.start()
     }
 
-    fun start3D(primaryStage: Stage) {
-        val screenBounds = Screen.getPrimary().bounds
-        val config = SimulationConfig(screenBounds)
-
-        val root = Group()
-        val scene = Scene(root, screenBounds.width, screenBounds.height, true)
-        scene.fill = Color.BLACK
-
-        val particles = generateParticles(config)
-        val simulation = ParticleMeshSimulation(config)
-        simulation.initSimulation(particles)
-
-        val camera = PerspectiveCamera(true).apply {
-            nearClip = 1.0
-            farClip = 100_000.0
-            translateZ = -2000.0
-            translateX = config.centerX.toDouble()
-            translateY = config.centerY.toDouble()
-        }
-
-        scene.camera = camera
-
-        primaryStage.title = "3D Particle Simulation"
-        primaryStage.scene = scene
-        primaryStage.show()
-
-        object : AnimationTimer() {
-            val scope = CoroutineScope(Dispatchers.Default)
-            override fun handle(now: Long) {
-                println("N0x: ${simulation.particleZ[0]}") // TODO
-                scope.launch {
-                    simulation.step()
-                    withContext(Dispatchers.JavaFx) {
-                        simulation.draw3D(root)
-                    }
-                }
-            }
-        }.start()
-    } // TODO
-
-    fun generateParticles(config: SimulationConfig): List<Particle> {
+    fun generateParticlesCircle(config: SimulationConfig): List<Particle> {
         var sumM = 0.0
         var sumMx = 0.0
         var sumMy = 0.0
         var sumMz = 0.0
 
         val particles = MutableList(config.count) {
-            val r = Random.nextFloat() * config.maxRadius
+            val r = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
             val angle1 = Random.nextDouble(0.0, 2 * PI)
             val angle2 = Random.nextDouble(0.0, PI)
 
@@ -330,11 +285,11 @@ class SimulationApp : Application() {
             val y = config.centerY + (r * sin(angle1) * sin(angle2)).toFloat()
             val z = config.centerZ + (r * cos(angle2)).toFloat()
 
-            val m = 1f//Random.nextInt(config.massFrom, config.massUntil).toFloat()
+            val m = Random.nextDouble(config.massFrom, config.massUntil).toFloat()
             val vx = 0f
             val vy = 0f
             val vz = 0f
-            val particleR = 2f//sqrt(m)
+            val particleR = sqrt(m)
 
             sumM += m
             sumMx += m * x
@@ -351,7 +306,8 @@ class SimulationApp : Application() {
 
         // Применяем скорости
         val g = config.g
-        val magicConst = (PI).toFloat() // TODO должно зависить от maxRadius
+        val magicConst = (PI).toFloat() // TODO
+
         for (i in particles.indices) {
             val p = particles[i]
             val dx = p.x - centerMassX
@@ -363,30 +319,68 @@ class SimulationApp : Application() {
                 val ux = dx / dist
                 val uy = dy / dist
                 val uz = dz / dist
+
+                // Correct vz calculation for orbital velocity
                 val vx = -uy * v
                 val vy = ux * v
-                val vz = uz * v
-                particles[i] = Particle(p.x, p.y, p.z, vx * magicConst, vy * magicConst,vz * magicConst, p.m, p.r)
-            } else {
-                particles[i] = Particle(p.x, p.y, p.z, 0f, 0f,0f, p.m, p.r)
+                val vz = -ux * v // Adjusted vz to follow the orbital velocity rules
 
+                particles[i] = Particle(p.x, p.y, p.z, vx * magicConst, vy * magicConst, vz * magicConst, p.m, p.r)
+            } else {
+                particles[i] = Particle(p.x, p.y, p.z, 0f, 0f, 0f, p.m, p.r)
             }
         }
         return particles
     }
 
+    fun generateParticlesBox(config: SimulationConfig): List<Particle> {
+        val w = config.worldWidth.toDouble()
+        val h = config.worldHeight.toDouble()
+        val d = config.worldDepth.toDouble()
+        val cX = config.centerX.toFloat()
+        val cY = config.centerY
+        val cZ = config.centerZ
+        val particles = MutableList(config.count) {
+            val x = Random.nextDouble(cX - config.boxSize, cX + config.boxSize).toFloat()
+            val y = Random.nextDouble(cY - config.boxSize, cY + config.boxSize).toFloat()
+            val z = Random.nextDouble(cZ - config.boxSize, cZ + config.boxSize).toFloat()
+
+            val m = Random.nextDouble(config.massFrom, config.massUntil).toFloat() // TODO
+            val vx = 0f
+            val vy = 0f
+            val vz = 0f
+            val particleR = sqrt(m) // TODO
+
+            Particle(x, y, z, vx, vy, vz, m, particleR)
+        }
+
+        return particles
+    }
+
     fun Scene.controller(simulation: ParticleMeshSimulation, canvas: Canvas) = setOnMouseClicked {
         val closestIndex = findClosestParticle(simulation, it.x.toFloat(), it.y.toFloat(), it.z.toFloat(), canvas.width, canvas.height)
+        val h = 0.5
+        val t = 0.5
+        val centerX = Random.nextDouble(simulation.config.worldWidth*h-simulation.config.worldWidth*t, simulation.config.worldWidth*h+simulation.config.worldWidth*t).toFloat()
+        val centerY = Random.nextDouble(simulation.config.worldHeight*h-simulation.config.worldHeight*t, simulation.config.worldHeight*h+simulation.config.worldHeight*t).toFloat()
+        val centerZ = Random.nextDouble(simulation.config.worldDepth*h-simulation.config.worldDepth*t, simulation.config.worldDepth*h+simulation.config.worldDepth*t).toFloat()
+
         when (it.button) {
+
             MouseButton.PRIMARY -> simulation.setParticleMass(closestIndex, 100_000f)
-            MouseButton.SECONDARY -> simulation.setParticleMass(closestIndex, -100_000f)
+            MouseButton.SECONDARY -> {
+                //simulation.setParticleMass(closestIndex, -100_000f)
+                simulation.config.centerX = centerX
+                simulation.config.centerY = centerY
+                simulation.config.centerZ = centerZ
+                val particles = generateParticlesCircle(simulation.config)
+                simulation.initSimulation(particles)
+            }
             else -> {
-                // Вычисляем масштаб, как в draw()
-                val scale = min(canvas.width / simulation.config.worldWidth, canvas.height / simulation.config.worldHeight)
-                val worldX = it.x / scale
-                val worldY = it.y / scale
-                val worldZ = it.z / scale
-                val particles = generateParticles(simulation.config)
+                simulation.config.centerX = centerX
+                simulation.config.centerY = centerY
+                simulation.config.centerZ = centerZ
+                val particles = generateParticlesBox(simulation.config)
                 simulation.initSimulation(particles)
             }
         }
@@ -426,8 +420,6 @@ class SimulationApp : Application() {
     }
 
 }
-
-
 
 fun main() {
     Application.launch(SimulationApp::class.java)
