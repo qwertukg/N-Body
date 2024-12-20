@@ -263,7 +263,6 @@ class SimulationApp : Application() {
 
                     withContext(Dispatchers.JavaFx) {
                         simulation.draw2D(gc)
-                        simulation.draw2D(gc)
                     }
                 }
             }
