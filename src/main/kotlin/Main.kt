@@ -37,7 +37,7 @@ data class SimulationConfig(
     val worldHeight: Float = 100_000f,
     val worldDepth: Float = 100_000f,
     val potentialSmoothingIterations: Int = 2,
-    var g: Float = 10f,
+    var g: Float = 100f,
     var centerX: Float = (worldWidth*0.5).toFloat(),
     var centerY: Float = (worldHeight*0.5).toFloat(),
     var centerZ: Float = (worldDepth*0.5).toFloat(),
@@ -423,7 +423,6 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
             val v = sqrt(g * totalMass / dist)
             val ux = dx / dist
             val uy = dy / dist
-            val uz = dz / dist
 
             // Correct vz calculation for orbital velocity
             val vx = -uy * v
@@ -439,9 +438,6 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
 }
 
 fun generateParticlesBox(config: SimulationConfig): List<Particle> {
-    val w = config.worldWidth.toDouble()
-    val h = config.worldHeight.toDouble()
-    val d = config.worldDepth.toDouble()
     val cX = config.centerX.toFloat()
     val cY = config.centerY
     val cZ = config.centerZ
@@ -502,7 +498,6 @@ fun findClosestParticle(
     // Переводим экранные координаты клика в координаты мира
     val worldX = x / scale
     val worldY = y / scale
-    val worldZ = z / scale
     val worldTolerance = tolerance / scale
 
     for (i in simulation.particleX.indices) {
@@ -533,8 +528,6 @@ fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: 
     var baseXPositions = FloatArray(0)
     var baseYPositions = FloatArray(0)
     var baseZPositions = FloatArray(0)
-
-    val g = config.g
 
     // Преобразование экранных координат в мировые координаты при заданном Z
     fun screenToWorldXY(screenX: Double, screenY: Double, currentZ: Float): Pair<Float, Float> {
