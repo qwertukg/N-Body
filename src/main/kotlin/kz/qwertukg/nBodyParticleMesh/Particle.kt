@@ -9,5 +9,5 @@ data class Particle(
     val vy: Float,
     val vz: Float,
     val m: Float,
-    val r: Float
+    val r: Float // = sqrt(m) / 100
 )

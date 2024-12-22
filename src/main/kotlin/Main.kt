@@ -70,26 +70,26 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
     var sumMz = 0.0
 
     val particles = MutableList(config.count) {
-        val r = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
+        val orbitR = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
         val angle1 = Random.nextDouble(0.0, 2 * PI)
         val angle2 = Random.nextDouble(0.0, PI)
 
-        val x = cx + (r * cos(angle1) * sin(angle2)).toFloat()
-        val y = cy + (r * sin(angle1) * sin(angle2)).toFloat()
-        val z = cz + (r * cos(angle2)).toFloat()
+        val x = cx + (orbitR * cos(angle1) * sin(angle2)).toFloat()
+        val y = cy + (orbitR * sin(angle1) * sin(angle2)).toFloat()
+        val z = cz + (orbitR * cos(angle2)).toFloat()
 
         val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
         val vx = 0f
         val vy = 0f
         val vz = 0f
-        val particleR = sqrt(m)
+        val r = sqrt(m) / 100
 
         sumM += m
         sumMx += m * x
         sumMy += m * y
         sumMz += m * z
 
-        Particle(x, y, z, vx, vy, vz, m, particleR)
+        Particle(x, y, z, vx, vy, vz, m, r)
     }
 
     val totalMass = sumM.toFloat()
@@ -99,7 +99,7 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
 
     // Применяем скорости
     val g = config.g
-    val magicConst = (config.magicConst).toFloat() // TODO
+    val magicConst = config.magicConst
 
     for (i in particles.indices) {
         val p = particles[i]
