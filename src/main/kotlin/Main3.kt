@@ -1,11 +1,12 @@
 import kotlinx.coroutines.*
+import kz.qwertukg.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL30.*
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL32.GL_PROGRAM_POINT_SIZE
 import kotlin.math.max
-import kotlin.math.min
 
 class SimulationAppLWJGL3(private val simulation: ParticleMeshSimulation) {
     private var window: Long = 0
@@ -47,7 +48,7 @@ class SimulationAppLWJGL3(private val simulation: ParticleMeshSimulation) {
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
-        window = glfwCreateWindow(width, height, "LWJGL Particle Simulation", 0, 0)
+        window = glfwCreateWindow(width, height, "LWJGL kz.qwertukg.nBodyPM.Particle Simulation", 0, 0)
         if (window == 0L) throw RuntimeException("Не удалось создать GLFW окно")
 
         glfwMakeContextCurrent(window)

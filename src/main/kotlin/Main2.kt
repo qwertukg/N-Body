@@ -1,4 +1,6 @@
 import kotlinx.coroutines.*
+import kz.qwertukg.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11.*
@@ -24,7 +26,7 @@ class SimulationAppLWJGL {
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
-        window = glfwCreateWindow(width, height, "LWJGL Particle Simulation", 0, 0)
+        window = glfwCreateWindow(width, height, "LWJGL kz.qwertukg.nBodyPM.Particle Simulation", 0, 0)
         if (window == 0L) {
             throw RuntimeException("Не удалось создать GLFW окно")
         }
