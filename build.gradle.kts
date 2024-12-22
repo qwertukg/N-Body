@@ -25,6 +25,13 @@ val platform = when {
 }
 
 dependencies {
+    implementation("org.lwjgl:lwjgl:3.3.1")
+    implementation("org.lwjgl:lwjgl-glfw:3.3.1")
+    implementation("org.lwjgl:lwjgl-opengl:3.3.1")
+    runtimeOnly("org.lwjgl:lwjgl:3.3.1:natives-windows") // Укажите платформу: windows, linux, macos
+    runtimeOnly("org.lwjgl:lwjgl-glfw:3.3.1:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-opengl:3.3.1:natives-windows")
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     // Поддержка корутин для JavaFX

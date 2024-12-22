@@ -1,82 +1,126 @@
-import javafx.animation.AnimationTimer
-import javafx.application.Application
-import javafx.application.Platform
-import javafx.application.ConditionalFeature
-import javafx.scene.*
-import javafx.scene.paint.Color
-import javafx.scene.paint.PhongMaterial
-import javafx.scene.shape.Sphere
-import javafx.scene.transform.Rotate
-import javafx.stage.Stage
+import kotlinx.coroutines.*
+import org.lwjgl.glfw.GLFW.*
+import org.lwjgl.opengl.GL
+import org.lwjgl.opengl.GL11.*
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
-class Minimal3DCheck : Application() {
+class SimulationAppLWJGL {
+    private var window: Long = 0
+    private val width = 1400
+    private val height = 1400
+    private val simulationScope = CoroutineScope(Dispatchers.Default)
+    private var simulationJob: Job? = null
 
-    override fun start(stage: Stage) {
-        println("start() called!")  // чтобы убедиться, что именно этот класс запускается
-
-        // 1) Создаём группу для 3D-объектов
-        val group3D = Group()
-
-        // 2) Сфера радиуса 50, располагаем её в (0,0,0)
-        val sphere = Sphere(50.0).apply {
-            material = PhongMaterial(Color.LIGHTBLUE)
+    fun start(simulation: ParticleMeshSimulation) {
+        // Инициализация GLFW
+        if (!glfwInit()) {
+            throw IllegalStateException("Не удалось инициализировать GLFW")
         }
 
-        // 3) Добавляем фоновое (окружающее) освещение,
-        //    чтобы сфера с PhongMaterial не была чёрной.
-        val ambientLight = AmbientLight(Color.WHITE)
+        // Создание окна
+        glfwDefaultWindowHints()
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE)
 
-        // 4) Добавляем сферу и свет в 3D-группу
-        group3D.children.addAll(sphere, ambientLight)
-
-        // 5) Камера (PerspectiveCamera) — настраиваем "истинное" 3D
-        val camera = PerspectiveCamera(true).apply {
-            // Диапазон видимости
-            nearClip = 0.1
-            farClip = 2_000.0
-            // Отодвигаем камеру по оси Z "назад" (в отрицательную сторону),
-            // чтобы сфера (которая в (0,0,0)) была "перед" камерой.
-            translateZ = -600.0
+        window = glfwCreateWindow(width, height, "LWJGL Particle Simulation", 0, 0)
+        if (window == 0L) {
+            throw RuntimeException("Не удалось создать GLFW окно")
         }
 
-        // 6) Создаём SubScene с 3D-контентом,
-        //    включаем Z-буфер и антиалайзинг.
-        val subScene = SubScene(
-            group3D,
-            800.0,
-            600.0,
-            true,
-            SceneAntialiasing.BALANCED
-        ).apply {
-            this.camera = camera
-            this.fill = Color.BLACK  // фон суб-сцены
+        glfwMakeContextCurrent(window)
+        glfwSwapInterval(0) // Вертикальная синхронизация
+        glfwShowWindow(window)
+
+        // Инициализация OpenGL
+        GL.createCapabilities()
+
+        // Основной цикл
+        while (!glfwWindowShouldClose(window)) {
+            // Обновляем состояние симуляции
+            updateSimulation(simulation)
+
+            // Очистка экрана
+            glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+
+            // Рендеринг частиц
+            draw2D(simulation)
+
+            // Смена буферов
+            glfwSwapBuffers(window)
+            glfwPollEvents()
         }
 
+        // Завершение работы
+        glfwDestroyWindow(window)
+        glfwTerminate()
+    }
 
-        // 7) Кладём SubScene в корневой узел JavaFX (Group или Pane)
-        val root = Group(subScene)
-        // 8) Создаём основную сцену
-        val mainScene = Scene(root, 800.0, 600.0, true, SceneAntialiasing.BALANCED)
-        stage.scene = mainScene
-        stage.title = "Minimal 3D Check"
-        stage.show()
-
-        // 9) Для наглядности вращаем сферу вокруг Y
-        val timer = object : AnimationTimer() {
-            var angle = 0.0
-            override fun handle(now: Long) {
-                angle += 1.0
-                sphere.rotationAxis = Rotate.Y_AXIS
-                sphere.rotate = angle
+    private fun updateSimulation(simulation: ParticleMeshSimulation) {
+        // Запускаем шаг симуляции в отдельной корутине, если предыдущий шаг завершён
+        if (simulationJob?.isActive != true) {
+            simulationJob = simulationScope.launch {
+                simulation.step()
             }
         }
-        timer.start()
+    }
 
-        // Проверим, поддерживается ли SCENE3D
-        println("SCENE3D supported? ${Platform.isSupported(ConditionalFeature.SCENE3D)}")
+    private fun draw2D(simulation: ParticleMeshSimulation) {
+        // Устанавливаем ортографическую проекцию
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(0.0, width.toDouble(), height.toDouble(), 0.0, -1.0, 1.0)
+
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+
+        // Активируем сглаживание точек и прозрачность
+        glEnable(GL_POINT_SMOOTH)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+
+
+        val scale = min(width / simulation.config.worldWidth, height / simulation.config.worldHeight)
+        val halfW = simulation.config.worldWidth * 0.5f
+        val halfH = simulation.config.worldHeight * 0.5f
+        val depth = simulation.config.worldDepth
+        val fov = simulation.config.fov
+
+        for (i in simulation.particleX.indices) {
+            val zFactor = 1f / (1f + (simulation.particleZ[i] / depth) * fov)
+            val screenX = ((simulation.particleX[i] - halfW) * zFactor + halfW) * scale
+            val screenY = ((simulation.particleY[i] - halfH) * zFactor + halfH) * scale
+            val size = simulation.particleR[i] * zFactor * scale
+
+            drawWhiteCircle2D(screenX, screenY, size, 4)
+        }
     }
 }
 
+fun drawWhiteCircle2D(cx: Float, cy: Float, radius: Float, segments: Int) {
+    glColor3f(1.0f, 1.0f, 1.0f)
+    glBegin(GL_TRIANGLE_FAN)
+    glVertex2f(cx, cy)
+    for (i in 0..segments) {
+        val angle = (2.0 * Math.PI * i / segments).toFloat()
+        val x = cx + radius * cos(angle)
+        val y = cy + radius * sin(angle)
+        glVertex2f(x, y)
+    }
+    glEnd()
+}
+
+// Точка входа
 fun main() {
-    Application.launch(Minimal3DCheck::class.java)
+    val config = SimulationConfig()
+    val particles = generateParticlesCircle(config, config.centerX, config.centerY, config.centerZ)
+
+    val simulation = ParticleMeshSimulation(config)
+    simulation.initSimulation(particles)
+
+    val app = SimulationAppLWJGL()
+    app.start(simulation)
 }

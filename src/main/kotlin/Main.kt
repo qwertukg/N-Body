@@ -1,10 +1,10 @@
 import javafx.animation.AnimationTimer
 import javafx.application.Application
-import javafx.geometry.Rectangle2D
 import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.input.MouseButton
+import javafx.scene.layout.BackgroundSize
 import javafx.scene.layout.StackPane
 import javafx.scene.paint.Color
 import javafx.stage.Screen
@@ -13,8 +13,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.JavaFx
 import kotlin.math.*
 import kotlin.random.Random
+import kotlin.system.measureTimeMillis
 
-// Data class for a 3D particle
+// Data class для 3D-частицы
 data class Particle(
     val x: Float,
     val y: Float,
@@ -26,33 +27,32 @@ data class Particle(
     val r: Float
 )
 
-// Configuration for the simulation
+// Конфигурация симуляции
 data class SimulationConfig(
-    val screenBounds: Rectangle2D,
+    val worldSize: Float = 100_000f,
     val count: Int = 300_000,
     val gridSizeX: Int = 64,
     val gridSizeY: Int = 64,
     val gridSizeZ: Int = 64,
-    val worldWidth: Float = 100_000f,
-    val worldHeight: Float = 100_000f,
-    val worldDepth: Float = 100_000f,
+    val worldWidth: Float = worldSize,
+    val worldHeight: Float = worldSize,
+    val worldDepth: Float = worldSize,
     val potentialSmoothingIterations: Int = 2,
-    var g: Float = 100f,
-    var centerX: Float = (worldWidth*0.5).toFloat(),
-    var centerY: Float = (worldHeight*0.5).toFloat(),
-    var centerZ: Float = (worldDepth*0.5).toFloat(),
-    val minRadius: Double = worldHeight * 0.01,
-    val maxRadius: Double = worldHeight * 0.1,
-    val massFrom: Double = 1.9,
-    val massUntil: Double = 2.0,
+    var g: Float = 10f,
+    var centerX: Float = (worldWidth * 0.5).toFloat(),
+    var centerY: Float = (worldHeight * 0.5).toFloat(),
+    var centerZ: Float = (worldDepth * 0.5).toFloat(),
+    val minRadius: Double = worldSize * 0.01,
+    val maxRadius: Double = worldSize * 0.1,
+    val massFrom: Float = 1.0f,
+    val massUntil: Float = 1.0001f,
     val isDropOutOfBounds: Boolean = false,
-    val fov: Double = 1.0,
-    val boxSize: Double = worldHeight * 0.1,
-    val magicConst: Double = PI,
+    val fov: Float = 1f,
+    val magicConst: Float = 3f,
     val isFullScreen: Boolean = false
 )
 
-// Main simulation class
+// Основной класс симуляции
 class ParticleMeshSimulation(val config: SimulationConfig) {
     // Массивы координат и характеристик частиц
     lateinit var particleX: FloatArray
@@ -69,20 +69,20 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
     private val gY = config.gridSizeY
     private val gZ = config.gridSizeZ
 
-    // Предварительный расчет некоторых величин для быстроты
+    // Предварительные расчёты
     private val gxGyGz = gX * gY * gZ
     private val gYgZ = gY * gZ
     private val cellWidth = config.worldWidth / gX
     private val cellHeight = config.worldHeight / gY
     private val cellDepth = config.worldDepth / gZ
 
-    // Одномерные массивы для масс и потенциалов, чтобы уменьшить накладные расходы при индексации
+    // Одномерные массивы для масс и потенциалов
     private val massGrid = FloatArray(gxGyGz)
     private val potentialGrid = FloatArray(gxGyGz)
     private val tempPotential = FloatArray(gxGyGz)
 
     /**
-     * Инициализация массива частиц из списка
+     * Инициализация из списка частиц
      */
     fun initSimulation(particles: List<Particle>) {
         val totalCount = particles.size
@@ -98,18 +98,16 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
 
     /**
      * Один шаг симуляции
-     * Параллелизация осуществляется корутинами, однако следует обеспечить, что step() не вызывается повторно до завершения предыдущего вызова.
      */
     suspend fun step() = coroutineScope {
-        // Обнуляем massGrid
+        // 1) Обнуляем massGrid
         massGrid.fill(0f)
 
         val totalCount = particleX.size
-        // Кол-во потоков будет равно числу доступных процессорных ядер, чтобы распараллелить вычисления
         val availableProcessors = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
         val chunkSize = (totalCount / availableProcessors).coerceAtLeast(1)
 
-        // Распределяем массу по сетке
+        // Предрасчёты для индексации
         val ww = config.worldWidth
         val wh = config.worldHeight
         val wd = config.worldDepth
@@ -117,7 +115,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         val dy = 1f / cellHeight
         val dz = 1f / cellDepth
 
-        // Запуск корутин для распределения масс
+        // 2) Распределяем массу по сетке (параллельно)
         (0 until totalCount step chunkSize).map { startIndex ->
             async(Dispatchers.Default) {
                 val endIndex = min(startIndex + chunkSize, totalCount)
@@ -127,7 +125,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                     val pz = particleZ[i]
 
                     // Индексация клетки
-                    // Используем прямое сравнение вместо coerceIn для скорости
                     var cx = (px * dx).toInt()
                     var cy = (py * dy).toInt()
                     var cz = (pz * dz).toInt()
@@ -135,78 +132,43 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                     if (cy < 0) cy = 0 else if (cy >= gY) cy = gY - 1
                     if (cz < 0) cz = 0 else if (cz >= gZ) cz = gZ - 1
 
-                    // Линейный индекс для одномерного массива
                     val index = cx * gYgZ + cy * gZ + cz
                     massGrid[index] += particleM[i]
                 }
             }
         }.awaitAll()
 
+        // 3) Формируем tempPotential (пока без сглаживания)
         val g = config.g
-        // Формирование tempPotential
-        // Потенциал = -g * mass
-        // Параллелизация особо не нужна для таких операций, но можем распараллелить если надо
         for (i in massGrid.indices) {
             tempPotential[i] = -g * massGrid[i]
         }
 
-        // Сглаживание потенциала
-        // Для каждой итерации сглаживания рассчитываем усредненный потенциал
+        // 4) Сглаживание потенциала (можно распараллелить по итерациям)
         repeat(config.potentialSmoothingIterations) {
-            // Проходим по внутренним точкам
-            for (x in 1 until gX - 1) {
-                val xBase = x * gYgZ
-                for (y in 1 until gY - 1) {
-                    val yBase = y * gZ
-                    val xyBase = xBase + yBase
-                    for (z in 1 until gZ - 1) {
-                        val idx = xyBase + z
-                        // Усредняем текущую точку с соседними
-                        val p = (
-                                tempPotential[idx] +
-                                        tempPotential[idx + gYgZ] +    // x+1
-                                        tempPotential[idx - gYgZ] +    // x-1
-                                        tempPotential[idx + gZ] +      // y+1
-                                        tempPotential[idx - gZ] +      // y-1
-                                        tempPotential[idx + 1] +       // z+1
-                                        tempPotential[idx - 1]         // z-1
-                                ) / 7f
-                        potentialGrid[idx] = p
-                    }
-                }
-            }
-
-            // Копируем potentialGrid в tempPotential для следующей итерации
-            // Вместо copyOf проходим циклом — так быстрее и не создаём новый массив
-            val tmp = tempPotential
-            for (i in potentialGrid.indices) {
-                tmp[i] = potentialGrid[i]
-            }
+            parallelSmoothPotential()
         }
 
-        // Обновление скоростей и позиций частиц
+        // 5) Обновление скоростей и позиций частиц (параллельно)
         (0 until totalCount step chunkSize).map { startIndex ->
             async(Dispatchers.Default) {
                 val endIndex = min(startIndex + chunkSize, totalCount)
-                // Заранее рассчитываем границы индексации в potentialGrid, чтобы не вызывать coerceIn
                 for (i in startIndex until endIndex) {
                     var px = particleX[i]
                     var py = particleY[i]
                     var pz = particleZ[i]
 
-                    // Индексы для производных потенциала
-                    // Зажимаем индексы, чтобы избежать выхода за пределы
-                    // Так как мы используем производные, нам нужны индексы от 1 до size-2
+                    // Индексы в potentialGrid
                     var cx = (px * dx).toInt()
                     var cy = (py * dy).toInt()
                     var cz = (pz * dz).toInt()
-
                     if (cx < 1) cx = 1 else if (cx > gX - 2) cx = gX - 2
                     if (cy < 1) cy = 1 else if (cy > gY - 2) cy = gY - 2
                     if (cz < 1) cz = 1 else if (cz > gZ - 2) cz = gZ - 2
 
                     val base = cx * gYgZ + cy * gZ + cz
-                    // Чтение соседних потенциалов для расчета градиента
+
+                    // Градиент потенциала
                     val dVdx = (potentialGrid[base + gYgZ] - potentialGrid[base - gYgZ]) / (2 * cellWidth)
                     val dVdy = (potentialGrid[base + gZ] - potentialGrid[base - gZ]) / (2 * cellHeight)
                     val dVdz = (potentialGrid[base + 1] - potentialGrid[base - 1]) / (2 * cellDepth)
@@ -216,11 +178,12 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                     var vy = particleVy[i] - dVdy
                     var vz = particleVz[i] - dVdz
 
-                    // Обновление позиций, зажимание внутри мира
+                    // Обновление позиций
                     px += vx
                     py += vy
                     pz += vz
 
+                    // Зажимаем внутри мира
                     if (px < 0f) { px = 0f; vx = 0f }
                     else if (px > ww) { px = ww; vx = 0f }
                     if (py < 0f) { py = 0f; vy = 0f }
@@ -228,7 +191,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                     if (pz < 0f) { pz = 0f; vz = 0f }
                     else if (pz > wd) { pz = wd; vz = 0f }
 
-                    // Записываем обновления обратно
                     particleX[i] = px
                     particleY[i] = py
                     particleZ[i] = pz
@@ -239,19 +201,68 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
             }
         }.awaitAll()
 
-        // Удаление частиц, вышедших за границы
+        // 6) Удаление вышедших за границы (если включено)
         dropOutOfBounce()
     }
 
     /**
-     * Отрисовка частиц в 2D проекции
+     * Параллельное сглаживание потенциала
+     * Для каждой итерации мы берём из tempPotential, пишем в potentialGrid,
+     * а потом копируем potentialGrid обратно в tempPotential.
+     */
+    private suspend fun parallelSmoothPotential() = coroutineScope {
+        val availableProcessors = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val chunkSizeX = (gX / availableProcessors).coerceAtLeast(1)
+
+        // Разбиваем проход по оси X на несколько корутин
+        val jobs = mutableListOf<Deferred<Unit>>()
+        for (startX in 1 until gX-1 step chunkSizeX) {
+            val endX = min(startX + chunkSizeX, gX-1)
+            jobs += async(Dispatchers.Default) {
+                for (x in startX until endX) {
+                    val xBase = x * gYgZ
+                    for (y in 1 until gY - 1) {
+                        val yBase = y * gZ
+                        val xyBase = xBase + yBase
+                        for (z in 1 until gZ - 1) {
+                            val idx = xyBase + z
+                            val p = (
+                                    tempPotential[idx] +
+                                            tempPotential[idx + gYgZ] +
+                                            tempPotential[idx - gYgZ] +
+                                            tempPotential[idx + gZ] +
+                                            tempPotential[idx - gZ] +
+                                            tempPotential[idx + 1] +
+                                            tempPotential[idx - 1]
+                                    ) / 7f
+                            potentialGrid[idx] = p
+                        }
+                    }
+                }
+            }
+        }
+        jobs.awaitAll()
+
+        // Копируем back potentialGrid -> tempPotential
+        // Желательно делать это тоже параллельно
+        val copyChunkSize = (gxGyGz / availableProcessors).coerceAtLeast(1)
+        (0 until gxGyGz step copyChunkSize).map { startIndex ->
+            async(Dispatchers.Default) {
+                val endIndex = min(startIndex + copyChunkSize, gxGyGz)
+                for (i in startIndex until endIndex) {
+                    tempPotential[i] = potentialGrid[i]
+                }
+            }
+        }.awaitAll()
+    }
+
+    /**
+     * Рисуем частицы в 2D
      */
     fun draw2D(gc: GraphicsContext) {
-        // Очищаем холст чёрным
         gc.fill = Color.BLACK
         gc.fillRect(0.0, 0.0, gc.canvas.width, gc.canvas.height)
 
-        // Масштаб по наименьшей стороне
         val scale = min(gc.canvas.width / config.worldWidth, gc.canvas.height / config.worldHeight)
         val fov = config.fov
         val halfW = config.worldWidth * 0.5
@@ -260,7 +271,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
 
         gc.fill = Color.WHITE
         for (i in particleX.indices) {
-            val zFactor = (1.0 / (1.0 + (particleZ[i] / depth) * fov))
+            val zFactor = 1.0 / (1.0 + (particleZ[i] / depth) * fov)
             val screenX = ((particleX[i] - halfW) * zFactor + halfW) * scale
             val screenY = ((particleY[i] - halfH) * zFactor + halfH) * scale
             val size = particleR[i] * zFactor
@@ -270,8 +281,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
 
     /**
      * Удаление частиц, вышедших за пределы мира
-     * Сжимает массивы, удаляя вышедшие частицы, тем самым уменьшая их размер.
-     * Это нужно делать осторожно, чтобы не обращаться к удалённым индексам в дальнейшем.
      */
     suspend fun dropOutOfBounce() = withContext(Dispatchers.Default) {
         if (config.isDropOutOfBounds) {
@@ -285,7 +294,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                 val px = particleX[i]
                 val py = particleY[i]
                 val pz = particleZ[i]
-                // Оставляем частицы, которые в пределах
                 if (px > 0f && px < ww && py > 0f && py < wh && pz > 0f && pz < wd) {
                     particleX[newCount] = px
                     particleY[newCount] = py
@@ -299,7 +307,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                 }
             }
 
-            // Сжимаем массивы до newCount
             if (newCount < oldCount) {
                 particleX = particleX.copyOf(newCount)
                 particleY = particleY.copyOf(newCount)
@@ -314,24 +321,27 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
     }
 
     /**
-     * Установить массу частицы по индексу
+     * Пример установки массы частиц
      */
     fun setParticleMass(i: Int, mass: Float) {
         particleM[i] = mass
     }
 }
 
+/**
+ * Главный класс приложения
+ */
 class SimulationApp : Application() {
     override fun start(primaryStage: Stage) {
         val screenBounds = Screen.getPrimary().bounds
-        val config = SimulationConfig(screenBounds)
 
+        // Размер холста — например, квадратный, чтобы не было искажений
         val canvas = Canvas(screenBounds.height, screenBounds.height)
         val gc = canvas.graphicsContext2D
 
-        // Генерируем частицы начальным способом (предполагается, что функция существует)
+        // Simulation
+        val config = SimulationConfig()
         val particles = generateParticlesCircle(config, config.centerX, config.centerY, config.centerZ)
-
         val simulation = ParticleMeshSimulation(config)
         simulation.initSimulation(particles)
 
@@ -343,24 +353,20 @@ class SimulationApp : Application() {
         primaryStage.isFullScreen = config.isFullScreen
         primaryStage.show()
 
-        // Настройка обработчика взаимодействия с пользователем (предполагается, что функция существует)
-        //scene.controller(simulation, canvas)
+        // Пример простого обработчика: можно добавить логику нажатия мышкой и т.д.
         scene.controllerCreateBodyGroup(simulation, canvas)
 
-        // Коррутинный scope для выполнения шагов симуляции
+        // Создаём корутину для обновления
         val scope = CoroutineScope(Dispatchers.Default)
         var currentJob: Job? = null
 
-        // Анимационный таймер для отрисовки и обновления
+        // Анимационный таймер
         object : AnimationTimer() {
             override fun handle(now: Long) {
-                // Не запускаем новый шаг пока предыдущий не закончился - предотвращаем гонки данных
+                // Если предыдущий шаг ещё не завершён, пропускаем кадр
                 if (currentJob?.isActive == true) return
 
-                // Вывод текущего количества частиц для отладки
-                println("X:${simulation.particleX.last()}, Y:${simulation.particleY.last()}, Z:${simulation.particleZ.last()}")
-
-                // Запуск нового шага симуляции
+                // Запуск нового шага
                 currentJob = scope.launch {
                     simulation.step()
                     withContext(Dispatchers.JavaFx) {
@@ -370,9 +376,6 @@ class SimulationApp : Application() {
             }
         }.start()
     }
-
-
-
 }
 
 fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: Float): List<Particle> {
@@ -390,7 +393,7 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
         val y = cy + (r * sin(angle1) * sin(angle2)).toFloat()
         val z = cz + (r * cos(angle2)).toFloat()
 
-        val m = Random.nextDouble(config.massFrom, config.massUntil).toFloat()
+        val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
         val vx = 0f
         val vy = 0f
         val vz = 0f
@@ -437,7 +440,87 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
     return particles
 }
 
-fun generateParticlesBox(config: SimulationConfig): List<Particle> {
+fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: Canvas) {
+    val sens = 100
+    var initialMouseX = 0.0
+    var initialMouseY = 0.0
+    val config = simulation.config
+
+    var baseXPositions = FloatArray(0)
+    var baseYPositions = FloatArray(0)
+    var baseZPositions = FloatArray(0)
+
+    // Преобразование экранных координат в мировые координаты при заданном Z
+    fun screenToWorldXY(screenX: Double, screenY: Double, currentZ: Float): Pair<Float, Float> {
+        val scale = min(canvas.width / config.worldWidth, canvas.height / config.worldHeight)
+        val halfW = config.worldWidth * 0.5f
+        val halfH = config.worldHeight * 0.5f
+        val zFactor = 1.0 / (1.0 + (currentZ / config.worldDepth) * config.fov)
+        val invZFactor = 1.0 / zFactor
+        val worldX = (((screenX / scale) - halfW) * invZFactor + halfW).toFloat()
+        val worldY = (((screenY / scale) - halfH) * invZFactor + halfH).toFloat()
+        return Pair(worldX, worldY)
+    }
+
+    val g = config.g
+    setOnMousePressed { event ->
+        if (event.isPrimaryButtonDown) {
+            //config.g = 0f
+            val (dx, dy) = screenToWorldXY(event.sceneX, event.sceneY, config.centerZ)
+            val particles = generateParticlesCircle(config, dx, dy, config.centerZ)
+            simulation.initSimulation(particles)
+            baseXPositions = simulation.particleX.copyOf()
+            baseYPositions = simulation.particleY.copyOf()
+            baseZPositions = simulation.particleZ.copyOf()
+            initialMouseX = event.sceneX
+            initialMouseY = event.sceneY
+        }
+    }
+
+    setOnMouseDragged { event ->
+        if (!event.isControlDown) {
+            val dx = (event.sceneX - initialMouseX) * sens
+            val dy = (event.sceneY - initialMouseY) * sens
+            for (i in 0 until simulation.particleX.size) {
+                simulation.particleX[i] = baseXPositions[i] + dx.toFloat()
+                simulation.particleY[i] = baseYPositions[i] + dy.toFloat()
+            }
+        } else {
+            val dy = (event.sceneY - initialMouseY) * sens * 2
+            for (i in 0 until simulation.particleX.size) {
+                simulation.particleZ[i] = baseZPositions[i] + dy.toFloat()
+            }
+        }
+    }
+
+    setOnMouseReleased { event ->
+        config.g = g
+    }
+}
+
+suspend fun main() {
+    // Simulation
+    /*val config = SimulationConfig()
+    val particles = generateParticlesCircle(config, config.centerX, config.centerY, config.centerZ)
+    val simulation = ParticleMeshSimulation(config)
+    simulation.initSimulation(particles)
+    val iterations = 10000
+    val dt = measureTimeMillis {
+        repeat(iterations) {
+            simulation.step()
+        }
+    }
+    val tpi = 1000 / (dt / iterations)
+    println("Duration time for ${config.count} bodies: $dt millis. Time per iteration: $tpi")*/
+
+    System.setProperty("javafx.animation.fullspeed", "true")
+    Application.launch(SimulationApp::class.java)
+}
+
+
+//==========================
+
+/*fun generateParticlesBox(config: SimulationConfig): List<Particle> {
     val cX = config.centerX.toFloat()
     val cY = config.centerY
     val cZ = config.centerZ
@@ -456,9 +539,9 @@ fun generateParticlesBox(config: SimulationConfig): List<Particle> {
     }
 
     return particles
-}
+}*/
 
-fun Scene.controller(simulation: ParticleMeshSimulation, canvas: Canvas) = setOnMouseClicked {
+/*fun Scene.controller(simulation: ParticleMeshSimulation, canvas: Canvas) = setOnMouseClicked {
     val closestIndex = findClosestParticle(simulation, it.x.toFloat(), it.y.toFloat(), it.z.toFloat(), canvas.width, canvas.height)
     val h = 0.5
     val t = 0.5
@@ -481,9 +564,9 @@ fun Scene.controller(simulation: ParticleMeshSimulation, canvas: Canvas) = setOn
             simulation.initSimulation(particles)
         }
     }
-}
+}*/
 
-fun findClosestParticle(
+/*fun findClosestParticle(
     simulation: ParticleMeshSimulation,
     x: Float,
     y: Float,
@@ -513,67 +596,7 @@ fun findClosestParticle(
     }
 
     return 0
-}
-
-fun main() {
-    Application.launch(SimulationApp::class.java)
-}
-
-fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: Canvas) {
-    val sens = 100
-    var initialMouseX = 0.0
-    var initialMouseY = 0.0
-    val config = simulation.config
-
-    var baseXPositions = FloatArray(0)
-    var baseYPositions = FloatArray(0)
-    var baseZPositions = FloatArray(0)
-
-    // Преобразование экранных координат в мировые координаты при заданном Z
-    fun screenToWorldXY(screenX: Double, screenY: Double, currentZ: Float): Pair<Float, Float> {
-        val scale = min(canvas.width / config.worldWidth, canvas.height / config.worldHeight)
-        val halfW = config.worldWidth * 0.5f
-        val halfH = config.worldHeight * 0.5f
-        val zFactor = 1.0 / (1.0 + (currentZ / config.worldDepth) * config.fov)
-        val invZFactor = 1.0 / zFactor
-        val worldX = (((screenX / scale) - halfW) * invZFactor + halfW).toFloat()
-        val worldY = (((screenY / scale) - halfH) * invZFactor + halfH).toFloat()
-        return Pair(worldX, worldY)
-    }
-
-    setOnMousePressed { event ->
-        if (event.isPrimaryButtonDown) {
-            val (dx, dy) = screenToWorldXY(event.sceneX, event.sceneY, config.centerZ)
-            val particles = generateParticlesCircle(config, dx, dy, config.centerZ)
-            simulation.initSimulation(particles)
-            baseXPositions = simulation.particleX.copyOf()
-            baseYPositions = simulation.particleY.copyOf()
-            baseZPositions = simulation.particleZ.copyOf()
-            initialMouseX = event.sceneX
-            initialMouseY = event.sceneY
-        }
-    }
-
-    setOnMouseDragged { event ->
-        if (!event.isControlDown) {
-            val dx = (event.sceneX - initialMouseX) * sens
-            val dy = (event.sceneY - initialMouseY) * sens
-            for (i in 0 until simulation.particleX.size) {
-                simulation.particleX[i] = baseXPositions[i] + dx.toFloat()
-                simulation.particleY[i] = baseYPositions[i] + dy.toFloat()
-            }
-        } else {
-            val dy = (event.sceneY - initialMouseY) * sens * 2
-            for (i in 0 until simulation.particleX.size) {
-                simulation.particleZ[i] = baseZPositions[i] + dy.toFloat()
-            }
-        }
-    }
-
-    setOnMouseReleased { event ->
-        //config.g = g
-    }
-}
+}*/
 
 
 
