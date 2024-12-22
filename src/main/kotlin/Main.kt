@@ -141,15 +141,16 @@ fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: 
     }
 
 
-    setOnMousePressed { event ->
-        if (event.isPrimaryButtonDown) {
-            val (dx, dy) = if (!event.isControlDown) screenToWorldXY(event.sceneX, event.sceneY, config.centerZ)
+    setOnMousePressed { e ->
+        if (e.isPrimaryButtonDown) {
+            val (dx, dy) = if (!e.isControlDown) screenToWorldXY(e.sceneX, e.sceneY, config.centerZ)
             else config.worldWidth / 2 to config.worldWidth / 2
             generateBlackHole(dx, dy, simulation)
         }
 
-        if (event.isSecondaryButtonDown) {
-            val particles = generateParticlesBox(config)
+        if (e.isSecondaryButtonDown) {
+            val (dx, dy) = screenToWorldXY(e.sceneX, e.sceneY, config.centerZ)
+            val particles = generateParticlesCircle(config, dx, dy, config.centerZ)
             simulation.initSimulation(particles)
             simulation.config.blackHoleIndex = null
         }
