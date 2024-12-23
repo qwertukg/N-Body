@@ -1,19 +1,23 @@
 package kz.qwertukg.nBodyParticleMesh
 
+import javafx.scene.canvas.Canvas
 import kotlin.math.E
 import kotlin.math.PI
 
 // Конфигурация симуляции
 data class SimulationConfig(
-    val worldSize: Float = 1_000_000f,
-    val count: Int = 500_000,
-    val gridSizeX: Int = 64 * 2,
-    val gridSizeY: Int = 64,
-    val gridSizeZ: Int = 64,
-    val worldWidth: Float = worldSize * 2,
+    val count: Int = 300_000,
+    val screenW: Int = 3440,
+    val screenH: Int = 1440,
+    val gridSize: Int = 64,
+    val gridSizeX: Int = gridSize * screenW/screenH,
+    val gridSizeY: Int = gridSize,
+    val gridSizeZ: Int = gridSize,
+    val worldSize: Float = 500_000f,
+    val worldWidth: Float = worldSize * screenW/screenH,
     val worldHeight: Float = worldSize,
     val worldDepth: Float = worldSize,
-    val potentialSmoothingIterations: Int = 110, //60 ok //80 OK //100 Endless dance OK! //110 Alien eyes OK! //120 is MAX!!! //140 SUPERMAX!!! // 300 is too long wait
+    val potentialSmoothingIterations: Int = 60, //60 ok //80 OK //100 Endless dance OK! //110 Alien eyes OK! //120 is MAX!!! //140 SUPERMAX!!! // 300 is too long wait
     var g: Float = 9.81f,
     var centerX: Float = (worldWidth * 0.5).toFloat(),
     var centerY: Float = (worldHeight * 0.5).toFloat(),

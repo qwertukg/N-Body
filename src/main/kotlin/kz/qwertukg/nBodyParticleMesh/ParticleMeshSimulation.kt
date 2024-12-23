@@ -4,6 +4,7 @@ import javafx.scene.canvas.GraphicsContext
 import javafx.scene.paint.Color
 import kotlinx.coroutines.*
 import kotlin.math.min
+import kotlin.random.Random
 
 // Основной класс симуляции
 class ParticleMeshSimulation(val config: SimulationConfig) {
@@ -241,6 +242,11 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         val halfW = config.worldWidth * 0.5
         val halfH = config.worldHeight * 0.5
         val depth = config.worldDepth
+
+        /*val r = Random.nextInt(200, 255)
+        val g = Random.nextInt(200, 255)
+        val b = 255
+        val color = Color.rgb(r, g, b)*/
 
         gc.fill = Color.WHITE
         for (i in particleX.indices) {
