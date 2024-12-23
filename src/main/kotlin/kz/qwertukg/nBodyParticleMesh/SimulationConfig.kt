@@ -7,13 +7,13 @@ import kotlin.math.PI
 data class SimulationConfig(
     val worldSize: Float = 1_000_000f,
     val count: Int = 500_000,
-    val gridSizeX: Int = 64,
+    val gridSizeX: Int = 64 * 2,
     val gridSizeY: Int = 64,
     val gridSizeZ: Int = 64,
-    val worldWidth: Float = worldSize,
+    val worldWidth: Float = worldSize * 2,
     val worldHeight: Float = worldSize,
     val worldDepth: Float = worldSize,
-    val potentialSmoothingIterations: Int = 80, //60 is ok //80 is ok //100 is OK! //120 is MAX!!! //140 SUPERMAX!!!!! // 300 is too long wait
+    val potentialSmoothingIterations: Int = 110, //60 ok //80 OK //100 Endless dance OK! //110 Alien eyes OK! //120 is MAX!!! //140 SUPERMAX!!! // 300 is too long wait
     var g: Float = 10f,
     var centerX: Float = (worldWidth * 0.5).toFloat(),
     var centerY: Float = (worldHeight * 0.5).toFloat(),
@@ -25,6 +25,6 @@ data class SimulationConfig(
     val isDropOutOfBounds: Boolean = false,
     val fov: Float = 1f,
     val magicConst: Float = 3f, // 3f is ok
-    val isFullScreen: Boolean = false,
+    val isFullScreen: Boolean = true,
     var blackHoleIndex: Int? = null
 )

@@ -21,7 +21,7 @@ class SimulationApp : Application() {
         val screenBounds = Screen.getPrimary().bounds
 
         // Размер холста — например, квадратный, чтобы не было искажений
-        val canvas = Canvas(screenBounds.height, screenBounds.height)
+        val canvas = Canvas(screenBounds.width, screenBounds.height)
         val gc = canvas.graphicsContext2D
 
         // Simulation
