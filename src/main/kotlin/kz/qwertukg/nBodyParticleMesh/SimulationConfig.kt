@@ -14,7 +14,7 @@ data class SimulationConfig(
     val worldHeight: Float = worldSize,
     val worldDepth: Float = worldSize,
     val potentialSmoothingIterations: Int = 110, //60 ok //80 OK //100 Endless dance OK! //110 Alien eyes OK! //120 is MAX!!! //140 SUPERMAX!!! // 300 is too long wait
-    var g: Float = 10f,
+    var g: Float = 9.81f,
     var centerX: Float = (worldWidth * 0.5).toFloat(),
     var centerY: Float = (worldHeight * 0.5).toFloat(),
     var centerZ: Float = (worldDepth * 0.5).toFloat(),
