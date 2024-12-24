@@ -142,8 +142,9 @@ fun generateParticlesDiskXY(config: SimulationConfig, cx: Float, cy: Float, cz: 
 
     val particles = MutableList(config.count) {
         // Генерация точек в форме диска
-        val R = config.maxRadius // Радиус диска
-        val r = sqrt(Random.nextDouble(0.0, R * R)).toFloat() // Радиальное расстояние
+        val minR = config.minRadius // Радиус диска
+        val maxR = config.maxRadius // Радиус диска
+        val r = sqrt(Random.nextDouble(minR * minR, maxR * maxR)).toFloat() // Радиальное расстояние
         val theta = Random.nextDouble(0.0, 2 * PI) // Угол в плоскости диска
 
         // Координаты частицы
@@ -274,7 +275,7 @@ fun generateParticlesTorus(config: SimulationConfig, cx: Float, cy: Float, cz: F
     val particles = MutableList(config.count) {
         // Генерация точек в форме тора
         val R = config.minRadius // Большой радиус тора
-        val r = config.maxRadius // Малый радиус тора
+        val r = config.maxRadius - config.minRadius // Малый радиус тора
 
         // Углы для параметрического описания тора
         val theta = Random.nextDouble(0.0, 2 * PI) // Угол вдоль большого радиуса

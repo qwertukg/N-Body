@@ -2,9 +2,9 @@ package kz.qwertukg.nBodyParticleMesh
 
 // Конфигурация симуляции
 data class SimulationConfig(
-    val count: Int = 300_000,
-    val screenW: Int = 3440,
-    val screenH: Int = 1440,
+    val count: Int = 1000_000,
+    val screenW: Int = 1000,
+    val screenH: Int = 1000,
     val gridSize: Int = 64,
     val gridSizeX: Int = gridSize * screenW/screenH,
     val gridSizeY: Int = gridSize,
@@ -22,9 +22,10 @@ data class SimulationConfig(
     val maxRadius: Double = worldSize * 0.25, // 0.25 ok
     val massFrom: Float =   10000f,
     val massUntil: Float =  10001f,
-    val isDropOutOfBounds: Boolean = true,
+    val isDropOutOfBounds: Boolean = false,
     val fov: Float = 1f,
     val magicConst: Float = 3f, // 3f is ok
-    val isFullScreen: Boolean = true,
-    var blackHoleIndex: Int? = null
+    val isFullScreen: Boolean = false,
+    var blackHoleIndex: Int? = null,
+    val isFading: Boolean = true,
 )
