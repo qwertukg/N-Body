@@ -5,10 +5,7 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL11.*
 import java.lang.Math.toRadians
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
-import kotlin.math.tan
+import kotlin.math.*
 
 fun mapToRange(value: Float, oldMin: Float, oldMax: Float, newMin: Float, newMax: Float): Float {
     // Обратная интерполяция (находим пропорцию в старом диапазоне)
@@ -200,6 +197,7 @@ suspend fun drawTrianglesAsync(simulation: ParticleMeshSimulation, scale: Float,
     val paddingZ = simulation.config.worldDepth / 2 / scale
     val c = getOriginalCoordinates(cameraPosition.first, cameraPosition.second, cameraPosition.third, dx, dy)
 
+    var count = 0
     for (i in 0 until totalIterations step chunkSize) {
         jobs.add(launch {
             val end = minOf(i + chunkSize, totalIterations)
@@ -208,34 +206,26 @@ suspend fun drawTrianglesAsync(simulation: ParticleMeshSimulation, scale: Float,
                 val y = (simulation.particleY[j] / scale) - paddingY
                 val z = (simulation.particleZ[j] / scale) - paddingZ
 
-                // Проверяем, находится ли точка в области видимости
-                val aspect = simulation.config.screenW.toFloat() / simulation.config.screenH
-                val fovY = depth
-                val zNear = 0.01f
-                val zFar = zoom * 10 // Устанавливаем дальнюю плоскость в зависимости от zoom
+                // Расстояние до камеры
+                val distance = sqrt(
+                    (x - c.first).pow(2) +
+                            (y - c.second).pow(2) +
+                            (z - c.third).pow(2)
+                )
 
-                // Вычисляем размеры видимого объема на текущей глубине
-                val fovRad = Math.toRadians(fovY.toDouble()).toFloat()
-                val halfHeight = z * tan(fovRad / 2)
-                val halfWidth = halfHeight * aspect
 
-                val isOutOfView = z < zNear
+                if (simulation.config.isFading) {
 
-                if (isOutOfView) {
-                    glColor3f(1f, 0f, 0f) // Красный цвет для точек за пределами видимости
-                } else if (simulation.config.isFading) {
-                    // Расстояние до камеры
-                    val distance = kotlin.math.sqrt(
-                        (x - c.first).pow(2) +
-                                (y - c.second).pow(2) +
-                                (z - c.third).pow(2)
-                    )
                     // Нормализуем расстояние для изменения цвета
                     val normalizedDistance = (1 - distance).coerceIn(0.015f, 1f)
-                    glColor3f(normalizedDistance, normalizedDistance, normalizedDistance)
+                    if (distance > 0f) {
+                        glColor3f(normalizedDistance, normalizedDistance, normalizedDistance)
+                        count++
+                    }
+                    //else glColor3f(1f, 0f, 0f)
                 }
 
-                glVertex3f(x, y, z)
+                if (distance > 0f) glVertex3f(x, y, z)
             }
         })
     }

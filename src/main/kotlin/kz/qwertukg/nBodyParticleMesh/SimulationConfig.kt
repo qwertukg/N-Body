@@ -27,5 +27,5 @@ data class SimulationConfig(
     val magicConst: Float = 3f, // 3f is ok
     val isFullScreen: Boolean = false,
     var blackHoleIndex: Int? = null,
-    val isFading: Boolean = true,
+    val isFading: Boolean = false,
 )
