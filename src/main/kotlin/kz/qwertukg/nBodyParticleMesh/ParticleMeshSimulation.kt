@@ -153,21 +153,23 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                     pz += vz
 
                     // Зажимаем внутри мира
-//                    if (px < 0f) {
-//                        px = 0f; vx = 0f
-//                    } else if (px > ww) {
-//                        px = ww; vx = 0f
-//                    }
-//                    if (py < 0f) {
-//                        py = 0f; vy = 0f
-//                    } else if (py > wh) {
-//                        py = wh; vy = 0f
-//                    }
-//                    if (pz < 0f) {
-//                        pz = 0f; vz = 0f
-//                    } else if (pz > wd) {
-//                        pz = wd; vz = 0f
-//                    }
+                    if (config.isDropOutOfBounds) {
+                        if (px < 0f) {
+                            px = 0f; vx = 0f
+                        } else if (px > ww) {
+                            px = ww; vx = 0f
+                        }
+                        if (py < 0f) {
+                            py = 0f; vy = 0f
+                        } else if (py > wh) {
+                            py = wh; vy = 0f
+                        }
+                        if (pz < 0f) {
+                            pz = 0f; vz = 0f
+                        } else if (pz > wd) {
+                            pz = wd; vz = 0f
+                        }
+                    }
 
                     particleX[i] = px
                     particleY[i] = py

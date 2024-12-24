@@ -63,6 +63,146 @@ class SimulationApp : Application() {
     }
 }
 
+fun generateParticlesDiskXZ(config: SimulationConfig, cx: Float, cy: Float, cz: Float): List<Particle> {
+    var sumM = 0.0
+    var sumMx = 0.0
+    var sumMy = 0.0
+    var sumMz = 0.0
+
+    val particles = MutableList(config.count) {
+        // Генерация точек в форме диска
+        val minR = config.minRadius // Радиус диска
+        val maxR = config.maxRadius // Радиус диска
+        val r = sqrt(Random.nextDouble(minR * minR, maxR * maxR)).toFloat() // Радиальное расстояние
+        val theta = Random.nextDouble(0.0, 2 * PI) // Угол в плоскости диска
+
+        // Координаты частицы в плоскости XZ
+        val x = cx + (r * cos(theta)).toFloat()
+        val z = cz + (r * sin(theta)).toFloat()
+        val y = cy // Все точки лежат в одной плоскости Y
+
+        // Масса и радиус частицы
+        val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
+        val rParticle = sqrt(m) / 100
+
+        // Суммы для центра масс
+        sumM += m
+        sumMx += m * x
+        sumMy += m * y
+        sumMz += m * z
+        val h = 1_000.0
+        val rndY = Random.nextDouble(y - h, y + h).toFloat() //+ config.worldHeight/3
+
+        Particle(x, rndY, z, 0f, 0f, 0f, m, rParticle)
+    }
+
+    val totalMass = sumM.toFloat()
+    val centerMassX = (sumMx / sumM).toFloat()
+    val centerMassY = (sumMy / sumM).toFloat()
+    val centerMassZ = (sumMz / sumM).toFloat()
+
+    // Применяем скорости для орбитального завихрения
+    val g = config.g
+    val magicConst = config.magicConst
+
+    for (i in particles.indices) {
+        val p = particles[i]
+
+        // Направление к центру масс
+        val dx = p.x - centerMassX
+        val dz = p.z - centerMassZ
+        val dist = sqrt(dx * dx + dz * dz)
+
+        if (dist > 0f) {
+            // Скорость завихрения для диска
+            val v = sqrt(g * totalMass / dist)
+
+            // Нормализованные векторы для орбитального направления
+            val ux = -dz / dist
+            val uz = dx / dist
+
+            // Рассчитываем скорости
+            val vx = ux * v
+            val vy = 0f // Частицы движутся только в плоскости XZ
+            val vz = uz * v
+
+            particles[i] = Particle(p.x, p.y, p.z, vx * magicConst, vy, vz * magicConst, p.m, p.r)
+        } else {
+            particles[i] = Particle(p.x, p.y, p.z, 0f, 0f, 0f, p.m, p.r)
+        }
+    }
+    return particles
+}
+
+fun generateParticlesDiskXY(config: SimulationConfig, cx: Float, cy: Float, cz: Float): List<Particle> {
+    var sumM = 0.0
+    var sumMx = 0.0
+    var sumMy = 0.0
+    var sumMz = 0.0
+
+    val particles = MutableList(config.count) {
+        // Генерация точек в форме диска
+        val R = config.maxRadius // Радиус диска
+        val r = sqrt(Random.nextDouble(0.0, R * R)).toFloat() // Радиальное расстояние
+        val theta = Random.nextDouble(0.0, 2 * PI) // Угол в плоскости диска
+
+        // Координаты частицы
+        val x = cx + (r * cos(theta)).toFloat()
+        val y = cy + (r * sin(theta)).toFloat()
+        val z = cz // Все точки лежат в одной плоскости Z
+
+        // Масса и радиус частицы
+        val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
+        val rParticle = sqrt(m) / 100
+
+        // Суммы для центра масс
+        sumM += m
+        sumMx += m * x
+        sumMy += m * y
+        sumMz += m * z
+
+        val rndZ = Random.nextDouble(z - 1000.0, z + 1000.0).toFloat()
+        Particle(x, y, rndZ, 0f, 0f, 0f, m, rParticle)
+    }
+
+    val totalMass = sumM.toFloat()
+    val centerMassX = (sumMx / sumM).toFloat()
+    val centerMassY = (sumMy / sumM).toFloat()
+    val centerMassZ = (sumMz / sumM).toFloat()
+
+    // Применяем скорости для орбитального завихрения
+    val g = config.g
+    val magicConst = config.magicConst
+
+    for (i in particles.indices) {
+        val p = particles[i]
+
+        // Направление к центру масс
+        val dx = p.x - centerMassX
+        val dy = p.y - centerMassY
+        val dist = sqrt(dx * dx + dy * dy)
+
+        if (dist > 0f) {
+            // Скорость завихрения для диска
+            val v = sqrt(g * totalMass / dist)
+
+            // Нормализованные векторы для орбитального направления
+            val ux = -dy / dist
+            val uy = dx / dist
+
+            // Рассчитываем скорости
+            val vx = ux * v
+            val vy = uy * v
+            val vz = 0f // Частицы движутся только в плоскости XY
+
+            particles[i] = Particle(p.x, p.y, p.z, vx * magicConst, vy * magicConst, vz, p.m, p.r)
+        } else {
+            particles[i] = Particle(p.x, p.y, p.z, 0f, 0f, 0f, p.m, p.r)
+        }
+    }
+    return particles
+}
+
 fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: Float): List<Particle> {
     var sumM = 0.0
     var sumMx = 0.0
@@ -125,6 +265,83 @@ fun generateParticlesCircle(config: SimulationConfig, cx: Float, cy: Float, cz: 
     return particles
 }
 
+fun generateParticlesTorus(config: SimulationConfig, cx: Float, cy: Float, cz: Float): List<Particle> {
+    var sumM = 0.0
+    var sumMx = 0.0
+    var sumMy = 0.0
+    var sumMz = 0.0
+
+    val particles = MutableList(config.count) {
+        // Генерация точек в форме тора
+        val R = config.minRadius // Большой радиус тора
+        val r = config.maxRadius // Малый радиус тора
+
+        // Углы для параметрического описания тора
+        val theta = Random.nextDouble(0.0, 2 * PI) // Угол вдоль большого радиуса
+        val phi = Random.nextDouble(0.0, 2 * PI)   // Угол на окружности малого радиуса
+
+        // Координаты частицы
+        val x = cx + ((R + r * cos(phi)) * cos(theta)).toFloat()
+        val y = cy + ((R + r * cos(phi)) * sin(theta)).toFloat()
+        val z = cz + (r * sin(phi)).toFloat()
+
+        // Масса и радиус частицы
+        val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
+        val rParticle = sqrt(m) / 100
+
+        // Суммы для центра масс
+        sumM += m
+        sumMx += m * x
+        sumMy += m * y
+        sumMz += m * z
+
+        Particle(x, y, z, 0f, 0f, 0f, m, rParticle)
+    }
+
+    val totalMass = sumM.toFloat()
+    val centerMassX = (sumMx / sumM).toFloat()
+    val centerMassY = (sumMy / sumM).toFloat()
+    val centerMassZ = (sumMz / sumM).toFloat()
+
+    // Применяем скорости для орбитального завихрения
+    val g = config.g
+    val magicConst = config.magicConst
+
+    for (i in particles.indices) {
+        val p = particles[i]
+
+        // Направление к центру масс малого круга
+        val dx = p.x - centerMassX
+        val dy = p.y - centerMassY
+        val dz = p.z - centerMassZ
+
+        // Рассчитываем расстояние в плоскости малого радиуса
+        val distXY = sqrt(dx * dx + dy * dy)
+        val dist = sqrt(dx * dx + dy * dy + dz * dz)
+
+        if (dist > 0f) {
+            // Скорость завихрения для малого радиуса
+            val v = sqrt(g * totalMass / distXY)
+
+            // Нормализованные векторы для орбитального направления
+            val ux = -dy / distXY
+            val uy = dx / distXY
+
+            // Рассчитываем скорости, создавая орбитальное вращение
+            val vx = ux * v
+            val vy = uy * v
+            val vz = 0f // Минимальная скорость вдоль оси Z для завихрения
+
+            particles[i] = Particle(p.x, p.y, p.z, vx * magicConst, vy * magicConst, vz * magicConst, p.m, p.r)
+        } else {
+            particles[i] = Particle(p.x, p.y, p.z, 0f, 0f, 0f, p.m, p.r)
+        }
+    }
+    return particles
+}
+
+
+
 fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: Canvas) {
     val config = simulation.config
 
@@ -139,7 +356,6 @@ fun Scene.controllerCreateBodyGroup(simulation: ParticleMeshSimulation, canvas: 
         val worldY = (((screenY / scale) - halfH) * invZFactor + halfH).toFloat()
         return Pair(worldX, worldY)
     }
-
 
     setOnMousePressed { e ->
         if (e.isPrimaryButtonDown) {
