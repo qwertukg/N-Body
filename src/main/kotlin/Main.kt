@@ -90,7 +90,7 @@ fun generateParticlesDiskXZ(config: SimulationConfig, cx: Float, cy: Float, cz: 
         sumMx += m * x
         sumMy += m * y
         sumMz += m * z
-        val h = 1_000.0
+        val h = (maxR - minR) * 2
         val rndY = Random.nextDouble(y - h, y + h).toFloat() //+ config.worldHeight/3
 
         Particle(x, rndY, z, 0f, 0f, 0f, m, rParticle)
@@ -161,8 +161,8 @@ fun generateParticlesDiskXY(config: SimulationConfig, cx: Float, cy: Float, cz: 
         sumMx += m * x
         sumMy += m * y
         sumMz += m * z
-
-        val rndZ = Random.nextDouble(z - 1000.0, z + 1000.0).toFloat()
+        val h = (maxR - minR) / 2
+        val rndZ = Random.nextDouble(z - h, z + h).toFloat()
         Particle(x, y, rndZ, 0f, 0f, 0f, m, rParticle)
     }
 
