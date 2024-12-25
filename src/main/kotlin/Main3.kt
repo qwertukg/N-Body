@@ -58,7 +58,11 @@ suspend fun main() = runBlocking {
     createCapabilities() // Инициализация OpenGL для текущего окна
 
     // Настройки OpenGL
-    glEnable(GL_DEPTH_TEST) // Включаем тест глубины, чтобы правильно отображать объекты в 3D
+    glEnable(GL_DEPTH_TEST) // Включить тест глубины
+    glDepthFunc(GL_LESS)    // Отрисовывать пиксели, которые ближе к камере
+    glEnable(GL_CULL_FACE) // Включить отсечение невидимых граней
+    glCullFace(GL_BACK)    // Отбрасывать грани, которые "смотрят" назад
+    glFrontFace(GL_CCW)    // Устанавливаем направление обхода вершин (CCW — против часовой стрелки)
 
     // Устанавливаем обработчик клавиш
     glfwSetScrollCallback(window) { _, xoffset, yoffset ->
@@ -158,6 +162,9 @@ suspend fun main() = runBlocking {
         // Меняем буферы местами (для отображения следующего кадра)
         glfwSwapBuffers(window)
 
+        // очистить буфер глубины
+        glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+
         // Обрабатываем события (например, нажатия клавиш или движение мыши)
         glfwPollEvents()
     }
@@ -195,7 +202,7 @@ suspend fun drawTrianglesAsync(simulation: ParticleMeshSimulation, scale: Float,
     val paddingX = simulation.config.worldWidth / 2 / scale
     val paddingY = simulation.config.worldHeight / 2 / scale
     val paddingZ = simulation.config.worldDepth / 2 / scale
-    val c = getOriginalCoordinates(cameraPosition.first, cameraPosition.second, cameraPosition.third, dx, dy)
+    val ordinal = getOriginalCoordinates(cameraPosition.first, cameraPosition.second, cameraPosition.third, dx, dy)
 
     var count = 0
     for (i in 0 until totalIterations step chunkSize) {
@@ -207,25 +214,27 @@ suspend fun drawTrianglesAsync(simulation: ParticleMeshSimulation, scale: Float,
                 val z = (simulation.particleZ[j] / scale) - paddingZ
 
                 // Расстояние до камеры
+                val dx = x - ordinal.first
+                val dy = y - ordinal.second
+                val dz = z - ordinal.third
                 val distance = sqrt(
-                    (x - c.first).pow(2) +
-                            (y - c.second).pow(2) +
-                            (z - c.third).pow(2)
+                    dx.pow(2) +
+                        dy.pow(2) +
+                        dz.pow(2)
                 )
 
+                if (!isObjectInFrustum(dx.pow(2), dy.pow(2), dz.pow(2)))
+                    glColor3f(1f, 0f, 0f)
+                else glColor3f(1f, 1f, 1f)
+
+                // Нормализуем расстояние для изменения цвета
+                val normalizedDistance = (1 - distance).coerceIn(0.015f, 1f)
 
                 if (simulation.config.isFading) {
-
-                    // Нормализуем расстояние для изменения цвета
-                    val normalizedDistance = (1 - distance).coerceIn(0.015f, 1f)
-                    if (distance > 0f) {
-                        glColor3f(normalizedDistance, normalizedDistance, normalizedDistance)
-                        count++
-                    }
-                    //else glColor3f(1f, 0f, 0f)
+                    glColor3f(normalizedDistance, normalizedDistance, normalizedDistance)
                 }
 
-                if (distance > 0f) glVertex3f(x, y, z)
+                glVertex3f(x, y, z)
             }
         })
     }
@@ -234,6 +243,10 @@ suspend fun drawTrianglesAsync(simulation: ParticleMeshSimulation, scale: Float,
 
     // Дождаться завершения всех задач
     jobs.forEach { it.join() }
+}
+
+fun isObjectInFrustum(x: Float, y: Float, z: Float): Boolean {
+    return x in -1.0f..1.0f && y in -1.0f..1.0f && z in -1.0f..1.0f
 }
 
 fun getOriginalCoordinates(
