@@ -97,17 +97,18 @@ suspend fun main() = runBlocking {
     val geometryShaderSource = """
 #version 460 core
 layout(points) in;
-layout(triangle_strip, max_vertices = 18) out; // Используем triangle_strip для круга
+layout(triangle_strip, max_vertices = 130) out; // Рассчитываем max_vertices для edges = 64
 
 const float pointSize = 0.005; // Радиус круга
+const int edges = 64; // Количество граней
 
 void main() {
     vec4 center = gl_in[0].gl_Position; // Центр точки
 
     // Эмитируем вершины круга
-    for (int i = 0; i <= 8; ++i) {
+    for (int i = 0; i <= edges; ++i) {
         // Текущий угол
-        float angle = 2.0 * 3.14159265359 * float(i) / 8.0;
+        float angle = 2.0 * 3.14159265359 * float(i) / float(edges);
 
         // Рассчитываем смещение для вершин
         float xOffset = cos(angle) * pointSize;
