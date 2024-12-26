@@ -30,6 +30,9 @@ val javafxPlatform = when {
 }
 
 dependencies {
+    // https://mvnrepository.com/artifact/org.joml/joml
+    implementation("org.joml:joml:1.10.8")
+
     // LWJGL библиотеки
     implementation("org.lwjgl:lwjgl:$lwjglVersion")
     implementation("org.lwjgl:lwjgl-glfw:$lwjglVersion")
