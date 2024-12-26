@@ -1,10 +1,36 @@
+import kotlinx.coroutines.runBlocking
+import kz.qwertukg.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 
-fun main() {
+// Simulation init
+val config = SimulationConfig()
+val simulation = init(config)
+
+fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
+    val x = simulation.particleX
+    val y = simulation.particleY
+    val z = simulation.particleZ
+
+    if (x.size != y.size || y.size != z.size) {
+        throw IllegalArgumentException("Все массивы должны быть одинаковой длины")
+    }
+
+    val updatedPoints = FloatArray(x.size * 3)
+    for (i in x.indices) {
+        updatedPoints[i * 3] = x[i] / scale
+        updatedPoints[i * 3 + 1] = y[i] / scale
+        updatedPoints[i * 3 + 2] = z[i] / scale
+    }
+
+    return updatedPoints
+}
+
+suspend fun main() = runBlocking {
     // Инициализация GLFW
     if (!glfwInit()) {
         throw IllegalStateException("Не удалось инициализировать GLFW")
@@ -21,25 +47,11 @@ fun main() {
     }
 
     glfwMakeContextCurrent(window)
-    glfwSwapInterval(1)
+    glfwSwapInterval(0)
     createCapabilities()
 
-    // Массив точек куба
-    val points = floatArrayOf(
-        // Задняя грань куба
-        -0.5f, -0.5f, -0.5f,  // Нижняя левая задняя вершина
-        0.5f, -0.5f, -0.5f,  // Нижняя правая задняя вершина
-        -0.5f,  0.5f, -0.5f,  // Верхняя левая задняя вершина
-        0.5f,  0.5f, -0.5f,  // Верхняя правая задняя вершина
-
-        // Передняя грань куба
-        -0.5f, -0.5f,  0.5f,  // Нижняя левая передняя вершина
-        0.5f, -0.5f,  0.5f,  // Нижняя правая передняя вершина
-        -0.5f,  0.5f,  0.5f,  // Верхняя левая передняя вершина
-        0.5f,  0.5f,  0.5f,   // Верхняя правая передняя вершина
-
-        0f,  0f,  0f, // center
-    )
+    val scale = 1000000f
+    val points = updatePoints(simulation, scale)
 
     // Создание VAO и VBO
     val vao = glGenVertexArrays()
@@ -47,18 +59,27 @@ fun main() {
 
     glBindVertexArray(vao)
     glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    glBufferData(GL_ARRAY_BUFFER, points, GL_STATIC_DRAW)
+
+    // Выделяем память для буфера
+    glBufferData(GL_ARRAY_BUFFER, points.size * java.lang.Float.BYTES.toLong(), GL_DYNAMIC_DRAW)
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * java.lang.Float.BYTES, 0)
     glEnableVertexAttribArray(0)
     glBindVertexArray(0)
 
     // Создание матрицы перспективной проекции
     val projection = Matrix4f().perspective(
-        Math.toRadians(45.0).toFloat(), // Угол обзора
-        800f / 600f,                   // Соотношение сторон окна
-        0.1f,                          // Ближняя плоскость отсечения
-        100.0f                         // Дальняя плоскость отсечения
+        Math.toRadians(45.0).toFloat(),
+        800f / 600f,
+        0.1f,
+        10.0f
     )
+
+    val view = Matrix4f().lookAt(
+        0f, 0f, 3f,
+        0f, 0f, 0f,
+        0f, 1f, 0f
+    )
+    val projectionView = Matrix4f().set(projection).mul(view)
 
     // Вершинный шейдер
     val vertexShaderSource = """
@@ -67,7 +88,8 @@ fun main() {
         uniform mat4 projection;
 
         void main() {
-            gl_Position = vec4(aPos, 1.0);
+            gl_Position = projection * vec4(aPos, 1.0);
+            gl_PointSize = 20.0;
         }
     """.trimIndent()
 
@@ -77,7 +99,7 @@ fun main() {
         out vec4 FragColor;
 
         void main() {
-            FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белый цвет
+            FragColor = vec4(1.0, 1.0, 1.0, 1.0);
         }
     """.trimIndent()
 
@@ -105,12 +127,28 @@ fun main() {
 
     // Массив для передачи матрицы в OpenGL
     val matrixArray = FloatArray(16)
-    projection.get(matrixArray)
+    projectionView.get(matrixArray)
 
     // Главный цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
         // Очистка экрана
         glClear(GL_COLOR_BUFFER_BIT)
+
+        // Обновление координат точек
+        simulation.step()
+        val updatedPoints = updatePoints(simulation, scale)
+
+        // Обновление данных через glMapBufferRange
+        glBindBuffer(GL_ARRAY_BUFFER, vbo)
+        val mappedBuffer = glMapBufferRange(
+            GL_ARRAY_BUFFER,
+            0,
+            updatedPoints.size * java.lang.Float.BYTES.toLong(),
+            GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT
+        )?.asFloatBuffer()
+        mappedBuffer?.put(updatedPoints)?.flip()
+        glUnmapBuffer(GL_ARRAY_BUFFER)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
 
         // Используем шейдерную программу
         glUseProgram(shaderProgram)
@@ -121,7 +159,7 @@ fun main() {
 
         // Рисуем точки
         glBindVertexArray(vao)
-        glDrawArrays(GL_POINTS, 0, 9)
+        glDrawArrays(GL_POINTS, 0, points.size / 3)
 
         glfwSwapBuffers(window)
         glfwPollEvents()
