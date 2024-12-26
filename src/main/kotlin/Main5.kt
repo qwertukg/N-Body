@@ -7,10 +7,6 @@ import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 
-// Simulation init
-val config = SimulationConfig()
-val simulation = init(config)
-
 fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
     val x = simulation.particleX
     val y = simulation.particleY
@@ -22,9 +18,9 @@ fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
 
     val updatedPoints = FloatArray(x.size * 3)
     for (i in x.indices) {
-        updatedPoints[i * 3] = x[i] / scale
-        updatedPoints[i * 3 + 1] = y[i] / scale
-        updatedPoints[i * 3 + 2] = z[i] / scale
+        updatedPoints[i * 3] = (x[i] - simulation.config.worldWidth / 2) / scale
+        updatedPoints[i * 3 + 1] = (y[i] - simulation.config.worldHeight / 2) / scale
+        updatedPoints[i * 3 + 2] = (z[i] - simulation.config.worldDepth / 2) / scale
     }
 
     return updatedPoints
@@ -41,7 +37,7 @@ suspend fun main() = runBlocking {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
-    val window = glfwCreateWindow(800, 600, "8 точек куба с перспективой", NULL, NULL)
+    val window = glfwCreateWindow(800, 600, "3D Точки с перспективой", NULL, NULL)
     if (window == NULL) {
         throw RuntimeException("Не удалось создать окно")
     }
@@ -49,6 +45,9 @@ suspend fun main() = runBlocking {
     glfwMakeContextCurrent(window)
     glfwSwapInterval(0)
     createCapabilities()
+
+    val config = SimulationConfig()
+    val simulation = init(config)
 
     val scale = 1000000f
     val points = updatePoints(simulation, scale)
@@ -66,30 +65,34 @@ suspend fun main() = runBlocking {
     glEnableVertexAttribArray(0)
     glBindVertexArray(0)
 
+    // Включение теста глубины
+    glEnable(GL_PROGRAM_POINT_SIZE)
+    glEnable(GL_DEPTH_TEST)
+
     // Создание матрицы перспективной проекции
-    val projection = Matrix4f().perspective(
+    val projectionMatrix = Matrix4f().perspective(
         Math.toRadians(45.0).toFloat(),
         800f / 600f,
         0.1f,
         10.0f
     )
 
-    val view = Matrix4f().lookAt(
-        0f, 0f, 3f,
-        0f, 0f, 0f,
-        0f, 1f, 0f
+    val viewMatrix = Matrix4f().lookAt(
+        0f, 0f, 3f,  // Позиция камеры
+        0f, 0f, 0f,  // Центр сцены
+        0f, 1f, 0f   // Направление "вверх"
     )
-    val projectionView = Matrix4f().set(projection).mul(view)
 
     // Вершинный шейдер
     val vertexShaderSource = """
         #version 460 core
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
+        uniform mat4 view;
 
         void main() {
-            gl_Position = projection * vec4(aPos, 1.0);
-            gl_PointSize = 20.0;
+            gl_Position = projection * view * vec4(aPos, 1.0);
+            gl_PointSize = 1.0;
         }
     """.trimIndent()
 
@@ -121,18 +124,23 @@ suspend fun main() = runBlocking {
     glLinkProgram(shaderProgram)
     checkProgramLinkStatus(shaderProgram)
 
-    // Очистка временных шейдеров
     glDeleteShader(vertexShader)
     glDeleteShader(fragmentShader)
 
-    // Массив для передачи матрицы в OpenGL
-    val matrixArray = FloatArray(16)
-    projectionView.get(matrixArray)
+    // Получение uniform-локаций
+    val projectionLocation = glGetUniformLocation(shaderProgram, "projection")
+    val viewLocation = glGetUniformLocation(shaderProgram, "view")
+
+    // Преобразование матриц в массивы
+    val projectionArray = FloatArray(16)
+    val viewArray = FloatArray(16)
+    projectionMatrix.get(projectionArray)
+    viewMatrix.get(viewArray)
 
     // Главный цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
         // Очистка экрана
-        glClear(GL_COLOR_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
         // Обновление координат точек
         simulation.step()
@@ -153,9 +161,9 @@ suspend fun main() = runBlocking {
         // Используем шейдерную программу
         glUseProgram(shaderProgram)
 
-        // Передача матрицы перспективы
-        val projectionUniformLocation = glGetUniformLocation(shaderProgram, "projection")
-        glUniformMatrix4fv(projectionUniformLocation, false, matrixArray)
+        // Передача матриц
+        glUniformMatrix4fv(projectionLocation, false, projectionArray)
+        glUniformMatrix4fv(viewLocation, false, viewArray)
 
         // Рисуем точки
         glBindVertexArray(vao)
