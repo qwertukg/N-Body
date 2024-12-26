@@ -3,7 +3,7 @@ package kz.qwertukg.nBodyApp.nBodyParticleMesh
 // Конфигурация симуляции
 data class SimulationConfig(
     val count: Int = 1_000_000,
-    val screenW: Int = 1440,
+    val screenW: Int = 3440,
     val screenH: Int = 1440,
     val gridSize: Int = 64,
     val gridSizeX: Int = gridSize * screenW/screenH,
@@ -24,8 +24,8 @@ data class SimulationConfig(
     val massUntil: Float =  10001f,
     val isDropOutOfBounds: Boolean = false,
     val fov: Float = 1f,
-    val magicConst: Float = 2.5f, // 3f is ok
-    val isFullScreen: Boolean = false,
+    val magicConst: Float = 3f, // 3f is ok
+    val isFullScreen: Boolean = true,
     var blackHoleIndex: Int? = null,
     val isFading: Boolean = false,
 )

@@ -30,6 +30,14 @@ fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
 }
 
 suspend fun main() = runBlocking {
+    val config = SimulationConfig()
+    val simulation = init(config)
+    val w = simulation.config.screenW
+    val h = simulation.config.screenH
+    val scale = 2000000f
+    val pointSize = 0.0025f
+    val points = updatePoints(simulation, scale)
+
     if (!glfwInit()) {
         throw IllegalStateException("Не удалось инициализировать GLFW")
     }
@@ -38,7 +46,7 @@ suspend fun main() = runBlocking {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
-    val window = glfwCreateWindow(800, 600, "3D Точки с геометрическим шейдером", NULL, NULL)
+    val window = glfwCreateWindow(w, h, "3D Точки с геометрическим шейдером", if (config.isFullScreen) glfwGetPrimaryMonitor() else 0, NULL)
     if (window == NULL) {
         throw RuntimeException("Не удалось создать окно")
     }
@@ -48,12 +56,6 @@ suspend fun main() = runBlocking {
     glfwMakeContextCurrent(window)
     glfwSwapInterval(0)
     createCapabilities()
-
-    val config = SimulationConfig()
-    val simulation = init(config)
-
-    val scale = 1000000f
-    val points = updatePoints(simulation, scale)
 
     // Создание VAO и VBO
     val vao = glGenVertexArrays()
@@ -71,11 +73,13 @@ suspend fun main() = runBlocking {
     glEnable(GL_DEPTH_TEST)
 
     // Матрицы
+    val zNear = 0.1f
+    val zFar = 10.0f
     val projectionMatrix = Matrix4f().perspective(
         Math.toRadians(45.0).toFloat(),
-        800f / 600f,
-        0.1f,
-        10.0f
+        w / h.toFloat(),
+        zNear,
+        zFar
     )
 
     val viewMatrix = Matrix4f().lookAt(
@@ -90,9 +94,15 @@ suspend fun main() = runBlocking {
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
         uniform mat4 view;
+        
+        out float fragDistance; // Передаем расстояние до камеры в геометрический шейдер
 
         void main() {
-            gl_Position = projection * view * vec4(aPos, 1.0);
+            // Преобразуем позицию в пространство камеры
+            vec4 viewPosition = view * vec4(aPos, 1.0);
+            fragDistance = -viewPosition.z; // Расстояние до камеры (z отрицательный)
+        
+            gl_Position = projection * viewPosition;
         }
     """.trimIndent()
 
@@ -101,10 +111,17 @@ suspend fun main() = runBlocking {
         layout(points) in;
         layout(triangle_strip, max_vertices = 130) out; // Рассчитываем max_vertices для edges = 64
         
-        const float pointSize = 0.005; // Радиус круга
+        uniform float w; // screen w
+        uniform float h; // screen h
+        uniform float pointSize; // Радиус круга
+        
         const int edges = 64; // Количество граней
+        in float fragDistance[]; // Расстояние до камеры, переданное из вершинного шейдера
+        out float fragDistance2; // Передаем расстояние до камеры во фрагментный шейдер
         
         void main() {
+            fragDistance2 = fragDistance[0];
+            
             vec4 center = gl_in[0].gl_Position; // Центр точки
         
             // Эмитируем вершины круга
@@ -113,7 +130,7 @@ suspend fun main() = runBlocking {
                 float angle = 2.0 * 3.14159265359 * float(i) / float(edges);
         
                 // Рассчитываем смещение для вершин
-                float xOffset = cos(angle) * pointSize * 6/8; // h/w для выравнивания круга
+                float xOffset = cos(angle) * pointSize * h/w; // h/w для выравнивания круга
                 float yOffset = sin(angle) * pointSize;
         
                 // Добавляем центральную вершину (для каждого треугольника)
@@ -131,10 +148,22 @@ suspend fun main() = runBlocking {
 
     val fragmentShaderSource = """
         #version 460 core
-        out vec4 FragColor;
 
+        in float fragDistance2; // Расстояние до камеры, переданное из вершинного шейдера
+        uniform float zNear;   // Ближняя плоскость отсечения
+        uniform float zFar;    // Дальняя плоскость отсечения
+        
+        out vec4 FragColor;
+        
         void main() {
-            FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белый цвет
+            // Нормализация расстояния в диапазон [0, 1]
+            float normalizedDistance = clamp((fragDistance2 - zNear) / (zFar - zNear), 0.0, 1.0);
+        
+            // Яркость обратно пропорциональна расстоянию
+            float brightness = 1.0 - normalizedDistance;
+        
+            // Результирующий цвет (чем ближе, тем ярче, дальше — темнее)
+            FragColor = vec4(vec3(brightness), 1.0); // Оттенки серого
         }
     """.trimIndent()
 
@@ -168,6 +197,10 @@ suspend fun main() = runBlocking {
     val projectionLocation = glGetUniformLocation(shaderProgram, "projection")
     val viewLocation = glGetUniformLocation(shaderProgram, "view")
     val pointSizeLocation = glGetUniformLocation(shaderProgram, "pointSize")
+    val zNearLocation = glGetUniformLocation(shaderProgram, "zNear")
+    val zFarLocation = glGetUniformLocation(shaderProgram, "zFar")
+    val wLocation = glGetUniformLocation(shaderProgram, "w")
+    val hLocation = glGetUniformLocation(shaderProgram, "h")
 
     val projectionArray = FloatArray(16)
     val viewArray = FloatArray(16)
@@ -204,7 +237,12 @@ suspend fun main() = runBlocking {
 
         glUniformMatrix4fv(projectionLocation, false, projectionArray)
         glUniformMatrix4fv(viewLocation, false, viewArray)
-        glUniform1f(pointSizeLocation, 0.01f) // Размер точки
+        glUniform1f(pointSizeLocation, pointSize) // Размер точки
+        glUniform1f(zNearLocation, zNear) // Ближняя плоскость
+        glUniform1f(zFarLocation, zFar) // Дальняя плоскость
+        glUniform1f(wLocation, w.toFloat()) // Дальняя плоскость
+        glUniform1f(hLocation, h.toFloat()) // Дальняя плоскость
+
 
         glBindVertexArray(vao)
         glDrawArrays(GL_POINTS, 0, points.size / 3)
