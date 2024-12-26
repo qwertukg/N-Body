@@ -36,6 +36,8 @@ suspend fun main() = runBlocking {
     val h = simulation.config.screenH
     val scale = 2000000f
     val pointSize = 0.0025f
+    val zNear = 0.1f
+    val zFar = 10f
     val points = updatePoints(simulation, scale)
 
     if (!glfwInit()) {
@@ -73,8 +75,6 @@ suspend fun main() = runBlocking {
     glEnable(GL_DEPTH_TEST)
 
     // Матрицы
-    val zNear = 0.1f
-    val zFar = 10.0f
     val projectionMatrix = Matrix4f().perspective(
         Math.toRadians(45.0).toFloat(),
         w / h.toFloat(),
