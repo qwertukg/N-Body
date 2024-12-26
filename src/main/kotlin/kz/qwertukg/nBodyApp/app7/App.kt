@@ -12,6 +12,9 @@ import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
+import org.joml.Vector3f
+import kotlin.math.cos
+import kotlin.math.sin
 
 suspend fun main() = runBlocking {
     val config = SimulationConfig()
@@ -19,8 +22,8 @@ suspend fun main() = runBlocking {
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
-    val pointSize = 0.002f
-    val zNear = 0.1f
+    val pointSize = 0.0004f
+    val zNear = 0.0004f
     val zFar = 10f
     val points = updatePoints(simulation, scale)
 
@@ -37,13 +40,12 @@ suspend fun main() = runBlocking {
         throw RuntimeException("Не удалось создать окно")
     }
 
-    //glfwWindowHint(GLFW_SAMPLES, 4) // 4x MSAA
+    glfwWindowHint(GLFW_SAMPLES, 4) // 4x MSAA
 
     glfwMakeContextCurrent(window)
     glfwSwapInterval(0)
     createCapabilities()
 
-    // Создание VAO и VBO
     val vao = glGenVertexArrays()
     val vbo = glGenBuffers()
 
@@ -55,10 +57,8 @@ suspend fun main() = runBlocking {
     glEnableVertexAttribArray(0)
     glBindVertexArray(0)
 
-    // Включение теста глубины
     glEnable(GL_DEPTH_TEST)
 
-    // Матрицы
     val projectionMatrix = Matrix4f().perspective(
         Math.toRadians(45.0).toFloat(),
         w / h.toFloat(),
@@ -66,82 +66,70 @@ suspend fun main() = runBlocking {
         zFar
     )
 
-    // Шейдеры
     val vertexShaderSource = """
         #version 410 core
         layout(location = 0) in vec3 aPos;
+        
         uniform mat4 projection;
         uniform mat4 view;
         
-        out float fragDistance; // Передаем расстояние до камеры в геометрический шейдер
-
-        void main() {
-            // Преобразуем позицию в пространство камеры
-            vec4 viewPosition = view * vec4(aPos, 1.0);
-            fragDistance = -viewPosition.z; // Расстояние до камеры (z отрицательный)
+        out float fragDistance; // Расстояние до камеры
         
-            gl_Position = projection * viewPosition;
+        void main() {
+            vec4 viewPosition = view * vec4(aPos, 1.0); // Позиция в пространстве камеры
+            fragDistance = -viewPosition.z; // Z отрицательный в пространстве камеры
+            gl_Position = projection * viewPosition; // Проекция на экран
         }
     """.trimIndent()
 
     val geometryShaderSource = """
         #version 410 core
         layout(points) in;
-        layout(triangle_strip, max_vertices = 130) out; // Рассчитываем max_vertices для edges = 64
+        layout(triangle_strip, max_vertices = 18) out; // edges = 8
         
-        uniform float w; // screen w
-        uniform float h; // screen h
+        uniform float w;         // Ширина экрана
+        uniform float h;         // Высота экрана
         uniform float pointSize; // Радиус круга
         
-        const int edges = 8; // Количество граней
-        in float fragDistance[]; // Расстояние до камеры, переданное из вершинного шейдера
-        out float fragDistance2; // Передаем расстояние до камеры во фрагментный шейдер
+        const int edges = 8; // Количество граней круга
+        
+        in float fragDistance[]; // Расстояние до камеры
+        out float fragDistance2; // Для передачи во фрагментный шейдер
         
         void main() {
             fragDistance2 = fragDistance[0];
-            
-            vec4 center = gl_in[0].gl_Position; // Центр точки
+            vec4 center = gl_in[0].gl_Position;
         
-            // Эмитируем вершины круга
+            float radiusX = pointSize * h / w;
+            float radiusY = pointSize;
+        
             for (int i = 0; i <= edges; ++i) {
-                // Текущий угол
-                float angle = 2.0 * 3.14159265359 * float(i) / float(edges);
+                float angle = i * 2.0 * 3.14159265359 / float(edges);
+                vec2 offset = vec2(cos(angle) * radiusX, sin(angle) * radiusY);
         
-                // Рассчитываем смещение для вершин
-                float xOffset = cos(angle) * pointSize * h/w; // h/w для выравнивания круга
-                float yOffset = sin(angle) * pointSize;
-        
-                // Добавляем центральную вершину (для каждого треугольника)
                 gl_Position = center;
                 EmitVertex();
         
-                // Добавляем вершину на окружности
-                gl_Position = center + vec4(xOffset, yOffset, 0.0, 0.0);
+                gl_Position = center + vec4(offset, 0.0, 0.0);
                 EmitVertex();
             }
-        
             EndPrimitive();
         }
     """.trimIndent()
 
     val fragmentShaderSource = """
         #version 410 core
-
-        in float fragDistance2; // Расстояние до камеры, переданное из вершинного шейдера
-        uniform float zNear;   // Ближняя плоскость отсечения
-        uniform float zFar;    // Дальняя плоскость отсечения
+        
+        in float fragDistance2; // Расстояние до камеры
+        
+        uniform float zNear;
+        uniform float zFar;
         
         out vec4 FragColor;
         
         void main() {
-            // Нормализация расстояния в диапазон [0, 1]
-            float normalizedDistance = clamp((fragDistance2 - zNear) / (zFar - zNear), 0.0, 1.0);
-        
-            // Яркость обратно пропорциональна расстоянию
-            float brightness = 1.0 - normalizedDistance;
-        
-            // Результирующий цвет (чем ближе, тем ярче, дальше — темнее)
-            FragColor = vec4(vec3(brightness), 1.0); // Оттенки серого
+            float brightness = 1.0 - clamp((fragDistance2 - zNear) / (zFar - zNear) * 3, 0.0, 1.0);
+            FragColor = vec4(vec3(brightness), 1.0);
         }
     """.trimIndent()
 
@@ -171,7 +159,6 @@ suspend fun main() = runBlocking {
     glDeleteShader(geometryShader)
     glDeleteShader(fragmentShader)
 
-    // Получение uniform-локаций
     val projectionLocation = glGetUniformLocation(shaderProgram, "projection")
     val viewLocation = glGetUniformLocation(shaderProgram, "view")
     val pointSizeLocation = glGetUniformLocation(shaderProgram, "pointSize")
@@ -184,19 +171,32 @@ suspend fun main() = runBlocking {
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
 
-    // Включение MSAA в OpenGL
-    //glEnable(GL_MULTISAMPLE)
-
-    val maxSamples = glGetInteger(GL_MAX_SAMPLES)
-    println("Максимальное количество MSAA сэмплов: $maxSamples")
-    val isMultisampleEnabled = glIsEnabled(GL_MULTISAMPLE)
-    println("MSAA включено: $isMultisampleEnabled")
-    val numSamples = glGetInteger(GL_SAMPLES)
-    println("Количество MSAA сэмплов в текущем контексте: $numSamples")
-
-    var camZ = 3f
+    var camZ = 1f
+    var camAngleX = 0f
+    var camAngleY = 0f
     val camZStep = 0.1f
-    // Обработка колёсика мыши для изменения позиции камеры
+
+    var lastMouseX = 0.0
+    var lastMouseY = 0.0
+    var isDragging = false
+
+    glfwSetCursorPosCallback(window) { _, xpos, ypos ->
+        if (isDragging) {
+            val dx = xpos - lastMouseX
+            val dy = ypos - lastMouseY
+            camAngleX -= dx.toFloat() * 0.005f
+            camAngleY += dy.toFloat() * 0.005f
+        }
+        lastMouseX = xpos
+        lastMouseY = ypos
+    }
+
+    glfwSetMouseButtonCallback(window) { _, button, action, _ ->
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            isDragging = action == GLFW_PRESS
+        }
+    }
+
     glfwSetScrollCallback(window) { _, _, yoffset ->
         camZ = (camZ - yoffset.toFloat() * camZStep).coerceIn(zNear, zFar)
     }
@@ -204,8 +204,15 @@ suspend fun main() = runBlocking {
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-        // Обновляем матрицу вида
-        val viewMatrix = Matrix4f().lookAt(0f, 0f, camZ, 0f, 0f, 0f, 0f, 1f, 0f)
+        // Вычисляем положение камеры на орбите
+        val cameraPos = Vector3f(
+            camZ * cos(camAngleY) * sin(camAngleX),
+            camZ * sin(camAngleY),
+            camZ * cos(camAngleY) * cos(camAngleX)
+        )
+
+        val viewMatrix = Matrix4f()
+            .lookAt(cameraPos, Vector3f(0f, 0f, 0f), Vector3f(0f, 1f, 0f))
         viewMatrix.get(viewArray)
 
         simulation.step()
@@ -225,12 +232,11 @@ suspend fun main() = runBlocking {
 
         glUniformMatrix4fv(projectionLocation, false, projectionArray)
         glUniformMatrix4fv(viewLocation, false, viewArray)
-        glUniform1f(pointSizeLocation, pointSize) // Размер точки
-        glUniform1f(zNearLocation, zNear) // Ближняя плоскость
-        glUniform1f(zFarLocation, zFar) // Дальняя плоскость
-        glUniform1f(wLocation, w.toFloat()) // Дальняя плоскость
-        glUniform1f(hLocation, h.toFloat()) // Дальняя плоскость
-
+        glUniform1f(pointSizeLocation, pointSize)
+        glUniform1f(zNearLocation, zNear)
+        glUniform1f(zFarLocation, zFar)
+        glUniform1f(wLocation, w.toFloat())
+        glUniform1f(hLocation, h.toFloat())
 
         glBindVertexArray(vao)
         glDrawArrays(GL_POINTS, 0, points.size / 3)

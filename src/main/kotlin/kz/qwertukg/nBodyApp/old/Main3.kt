@@ -18,10 +18,10 @@ fun mapToRange(value: Float, oldMin: Float, oldMax: Float, newMin: Float, newMax
 
 
 fun init(config: SimulationConfig): ParticleMeshSimulation {
-    val particles = generateParticlesLine(config,
-//        config.centerX,
-//        config.centerY,
-//        config.centerZ
+    val particles = generateParticlesTorus(config,
+        config.centerX,
+        config.centerY,
+        config.centerZ
     )
     return ParticleMeshSimulation(config).apply {
         initSimulation(particles)
