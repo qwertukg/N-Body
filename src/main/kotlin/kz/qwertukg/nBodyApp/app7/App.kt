@@ -22,8 +22,8 @@ suspend fun main() = runBlocking {
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
-    val pointSize = 0.0004f
-    val zNear = 0.0004f
+    val pointSize = 0.0005f
+    val zNear = 0.001f
     val zFar = 10f
     val points = updatePoints(simulation, scale)
 
@@ -128,7 +128,7 @@ suspend fun main() = runBlocking {
         out vec4 FragColor;
         
         void main() {
-            float brightness = 1.0 - clamp((fragDistance2 - zNear) / (zFar - zNear) * 3, 0.0, 1.0);
+            float brightness = 1.0 - clamp((fragDistance2 - zNear) / (zFar - zNear) * 5, 0.0, 1.0);
             FragColor = vec4(vec3(brightness), 1.0);
         }
     """.trimIndent()
@@ -172,8 +172,8 @@ suspend fun main() = runBlocking {
     projectionMatrix.get(projectionArray)
 
     var camZ = 1f
-    var camAngleX = 0f
-    var camAngleY = 0f
+    var camAngleX = -0.66f
+    var camAngleY = 0.66f
     val camZStep = 0.1f
 
     var lastMouseX = 0.0
