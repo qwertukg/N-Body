@@ -1,4 +1,4 @@
-package kz.qwertukg.nBodyParticleMesh
+package kz.qwertukg.nBodyApp.nBodyParticleMesh
 
 // Конфигурация симуляции
 data class SimulationConfig(

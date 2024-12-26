@@ -1,6 +1,8 @@
+package kz.qwertukg.nBodyApp
+
 import kotlinx.coroutines.*
-import kz.qwertukg.nBodyParticleMesh.ParticleMeshSimulation
-import kz.qwertukg.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL11.*

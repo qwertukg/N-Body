@@ -1,3 +1,5 @@
+package kz.qwertukg.nBodyApp
+
 import javafx.animation.AnimationTimer
 import javafx.application.Application
 import javafx.scene.Scene
@@ -7,9 +9,9 @@ import javafx.stage.Screen
 import javafx.stage.Stage
 import kotlinx.coroutines.*
 import kotlinx.coroutines.javafx.JavaFx
-import kz.qwertukg.nBodyParticleMesh.Particle
-import kz.qwertukg.nBodyParticleMesh.ParticleMeshSimulation
-import kz.qwertukg.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.Particle
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import kotlin.math.*
 import kotlin.random.Random
 

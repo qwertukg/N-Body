@@ -1,10 +1,9 @@
-package kz.qwertukg.nBodyParticleMesh
+package kz.qwertukg.nBodyApp.nBodyParticleMesh
 
 import javafx.scene.canvas.GraphicsContext
 import javafx.scene.paint.Color
 import kotlinx.coroutines.*
 import kotlin.math.min
-import kotlin.random.Random
 
 // Основной класс симуляции
 class ParticleMeshSimulation(val config: SimulationConfig) {

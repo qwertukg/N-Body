@@ -1,6 +1,11 @@
+package kz.qwertukg.nBodyApp.app4
+
+import kz.qwertukg.nBodyApp.init
 import kotlinx.coroutines.runBlocking
-import kz.qwertukg.nBodyParticleMesh.ParticleMeshSimulation
-import kz.qwertukg.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBodyApp.checkProgramLinkStatus
+import kz.qwertukg.nBodyApp.checkShaderCompileStatus
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
@@ -79,61 +84,25 @@ suspend fun main() = runBlocking {
         0f, 1f, 0f   // Направление "вверх"
     )
 
-    // Шейдеры
+    // Вершинный шейдер
     val vertexShaderSource = """
         #version 460 core
-
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
         uniform mat4 view;
-        
-        out vec3 fragPos;  // Позиция фрагмента в мировых координатах
-        out vec3 normal;   // Нормаль для освещения
-        
+
         void main() {
-            fragPos = aPos;             // Позиция фрагмента в пространстве мира
-            normal = normalize(aPos);   // Нормаль — это нормализованная позиция
-        
             gl_Position = projection * view * vec4(aPos, 1.0);
         }
     """.trimIndent()
 
+    // Фрагментный шейдер
     val fragmentShaderSource = """
         #version 460 core
-
-        in vec3 fragPos; // Позиция фрагмента в мировых координатах
-        in vec3 normal;  // Нормаль фрагмента
-        
-        uniform vec3 lightColor; // Цвет света
-        uniform vec3 lightPos;   // Позиция источника света
-        uniform vec3 viewPos;    // Позиция камеры
-        
         out vec4 FragColor;
-        
+
         void main() {
-            // Цвет материала
-            vec3 objectColor = vec3(1.0, 1.0, 1.0);
-        
-            // Фоновое освещение
-            float ambientStrength = 0.1;
-            vec3 ambient = ambientStrength * lightColor;
-        
-            // Рассеянное освещение
-            vec3 norm = normalize(normal);
-            vec3 lightDir = normalize(lightPos - fragPos);
-            float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = diff * lightColor;
-        
-            // Спекулярное освещение
-            float specularStrength = 0.5;
-            vec3 viewDir = normalize(viewPos - fragPos);
-            vec3 reflectDir = reflect(-lightDir, norm);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-            vec3 specular = specularStrength * spec * lightColor;
-        
-            // Итоговый цвет
-            vec3 result = (ambient + diffuse + specular) * objectColor;
-            FragColor = vec4(result, 1.0);
+            FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белый цвет
         }
     """.trimIndent()
 
@@ -206,3 +175,4 @@ suspend fun main() = runBlocking {
     glfwDestroyWindow(window)
     glfwTerminate()
 }
+

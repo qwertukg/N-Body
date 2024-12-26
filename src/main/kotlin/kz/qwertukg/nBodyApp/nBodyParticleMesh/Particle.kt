@@ -1,4 +1,4 @@
-package kz.qwertukg.nBodyParticleMesh
+package kz.qwertukg.nBodyApp.nBodyParticleMesh
 
 // Data class для 3D-частицы
 data class Particle(
