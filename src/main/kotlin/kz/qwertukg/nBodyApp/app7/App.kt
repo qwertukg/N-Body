@@ -19,7 +19,7 @@ suspend fun main() = runBlocking {
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
-    val pointSize = 0.0025f
+    val pointSize = 0.002f
     val zNear = 0.1f
     val zFar = 10f
     val points = updatePoints(simulation, scale)
@@ -29,7 +29,7 @@ suspend fun main() = runBlocking {
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
     val window = glfwCreateWindow(w, h, "3D Точки с геометрическим шейдером", if (config.isFullScreen) glfwGetPrimaryMonitor() else 0, NULL)
@@ -66,15 +66,9 @@ suspend fun main() = runBlocking {
         zFar
     )
 
-    val viewMatrix = Matrix4f().lookAt(
-        0f, 0f, 3f,  // Позиция камеры
-        0f, 0f, 0f,  // Центр сцены
-        0f, 1f, 0f   // Направление "вверх"
-    )
-
     // Шейдеры
     val vertexShaderSource = """
-        #version 460 core
+        #version 410 core
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
         uniform mat4 view;
@@ -91,7 +85,7 @@ suspend fun main() = runBlocking {
     """.trimIndent()
 
     val geometryShaderSource = """
-        #version 460 core
+        #version 410 core
         layout(points) in;
         layout(triangle_strip, max_vertices = 130) out; // Рассчитываем max_vertices для edges = 64
         
@@ -99,7 +93,7 @@ suspend fun main() = runBlocking {
         uniform float h; // screen h
         uniform float pointSize; // Радиус круга
         
-        const int edges = 64; // Количество граней
+        const int edges = 8; // Количество граней
         in float fragDistance[]; // Расстояние до камеры, переданное из вершинного шейдера
         out float fragDistance2; // Передаем расстояние до камеры во фрагментный шейдер
         
@@ -131,7 +125,7 @@ suspend fun main() = runBlocking {
     """.trimIndent()
 
     val fragmentShaderSource = """
-        #version 460 core
+        #version 410 core
 
         in float fragDistance2; // Расстояние до камеры, переданное из вершинного шейдера
         uniform float zNear;   // Ближняя плоскость отсечения
@@ -189,7 +183,6 @@ suspend fun main() = runBlocking {
     val projectionArray = FloatArray(16)
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
-    viewMatrix.get(viewArray)
 
     // Включение MSAA в OpenGL
     //glEnable(GL_MULTISAMPLE)
@@ -201,8 +194,19 @@ suspend fun main() = runBlocking {
     val numSamples = glGetInteger(GL_SAMPLES)
     println("Количество MSAA сэмплов в текущем контексте: $numSamples")
 
+    var camZ = 3f
+    val camZStep = 0.1f
+    // Обработка колёсика мыши для изменения позиции камеры
+    glfwSetScrollCallback(window) { _, _, yoffset ->
+        camZ = (camZ - yoffset.toFloat() * camZStep).coerceIn(zNear, zFar)
+    }
+
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+
+        // Обновляем матрицу вида
+        val viewMatrix = Matrix4f().lookAt(0f, 0f, camZ, 0f, 0f, 0f, 0f, 1f, 0f)
+        viewMatrix.get(viewArray)
 
         simulation.step()
         val updatedPoints = updatePoints(simulation, scale)

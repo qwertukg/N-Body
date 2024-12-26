@@ -64,7 +64,7 @@ suspend fun main() = runBlocking {
     if (!glfwInit()) throw IllegalStateException("Не удалось инициализировать GLFW")
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
     val window = glfwCreateWindow(
@@ -103,7 +103,7 @@ suspend fun main() = runBlocking {
 
     // Шейдеры
     val vertexShader = createShader(GL_VERTEX_SHADER, """
-        #version 460 core
+        #version 410 core
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
         uniform mat4 view;
@@ -122,7 +122,7 @@ suspend fun main() = runBlocking {
     """)
 
     val geometryShader = createShader(GL_GEOMETRY_SHADER, """
-        #version 460 core
+        #version 410 core
         layout(points) in;
         layout(triangle_strip, max_vertices = 130) out;
 
@@ -155,7 +155,7 @@ suspend fun main() = runBlocking {
     """)
 
     val fragmentShader = createShader(GL_FRAGMENT_SHADER, """
-       #version 460 core
+       #version 410 core
 
         in float fragDistance2; // Расстояние до камеры
         uniform float zNear;   // Ближняя плоскость отсечения
@@ -178,7 +178,7 @@ suspend fun main() = runBlocking {
             vec3 objectColor = vec3(1.0, 1.0, 1.0);
         
             // Фоновое освещение
-            float ambientStrength = 0.1;
+            float ambientStrength = 0.5;
             vec3 ambient = ambientStrength * lightColor;
         
             // Рассеянное освещение

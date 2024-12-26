@@ -92,7 +92,7 @@ fun generateParticlesDiskXZ(config: SimulationConfig, cx: Float, cy: Float, cz: 
         sumMx += m * x
         sumMy += m * y
         sumMz += m * z
-        val h = (maxR - minR) * 2
+        val h = (maxR - minR) / 100.0
         val rndY = Random.nextDouble(y - h, y + h).toFloat() //+ config.worldHeight/3
 
         Particle(x, rndY, z, 0f, 0f, 0f, m, rParticle)
@@ -423,6 +423,45 @@ fun generateParticlesBox(config: SimulationConfig): List<Particle> {
 
         Particle(x, y, z, vx, vy, vz, m, particleR)
     }
+
+    return particles
+}
+
+fun generateParticlesLine(config: SimulationConfig): List<Particle> {
+    val w = config.worldWidth * 100
+    val h = config.worldHeight * 100
+    val d = config.worldDepth * 100
+    val count = config.count
+    val particles = mutableListOf<Particle>()
+    repeat(count) {
+        val dx = sqrt(w * w) / count
+        val dy = sqrt(h * h) / count
+        val dz = sqrt(d * d) / count
+
+        val i = it - count / 2
+        val x = i * dx
+        val y = i * dy
+        val z = i * dz
+
+        val iii = -it + count / 2
+        val xxx = iii * dx
+
+        val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat() // TODO
+        val vx = 0f
+        val vy = 0f
+        val vz = 0f
+        val r = sqrt(m) // TODO
+
+
+        particles.addAll(listOf(
+            Particle(x, y, z, vx, vy, vz, m, r),
+            Particle(config.worldWidth/2, y, z, vx, vy, vz, m, r),
+            Particle(xxx, y, z, vx, vy, vz, m, r),
+        ))
+
+
+    }
+
 
     return particles
 }

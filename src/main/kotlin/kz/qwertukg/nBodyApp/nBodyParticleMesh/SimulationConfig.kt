@@ -2,7 +2,7 @@ package kz.qwertukg.nBodyApp.nBodyParticleMesh
 
 // Конфигурация симуляции
 data class SimulationConfig(
-    val count: Int = 500_000,
+    val count: Int = 100000,
     val screenW: Int = 1440,
     val screenH: Int = 1440,
     val gridSize: Int = 64,
@@ -14,7 +14,7 @@ data class SimulationConfig(
     val worldHeight: Float = worldSize,
     val worldDepth: Float = worldSize,
     val potentialSmoothingIterations: Int = 60, //60 ok //80 OK //100 Endless dance OK! //110 Alien eyes OK! //120 is MAX!!! //140 SUPERMAX!!! // 300 is too long wait
-    var g: Float = 90.81f,
+    var g: Float = 100f,
     var centerX: Float = worldWidth * 0.5f,
     var centerY: Float = worldHeight * 0.5f,
     var centerZ: Float = worldDepth * 0.5f,

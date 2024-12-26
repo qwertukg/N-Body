@@ -18,7 +18,7 @@ suspend fun main() = runBlocking {
     }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
     val window = glfwCreateWindow(800, 600, "Источники света", NULL, NULL)
@@ -61,15 +61,9 @@ suspend fun main() = runBlocking {
         zFar
     )
 
-    val viewMatrix = Matrix4f().lookAt(
-        0f, 0f, 3f,  // Позиция камеры
-        0f, 0f, 0f,  // Центр сцены
-        0f, 1f, 0f   // Направление "вверх"
-    )
-
     // Шейдеры
     val vertexShaderSource = """
-        #version 460 core
+        #version 410 core
         
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
@@ -88,7 +82,7 @@ suspend fun main() = runBlocking {
     """.trimIndent()
 
     val fragmentShaderSource = """
-        #version 460 core
+        #version 410 core
 
         in float fragDistance; // Расстояние до камеры, переданное из вершинного шейдера
         uniform float zNear;   // Ближняя плоскость отсечения
@@ -107,6 +101,13 @@ suspend fun main() = runBlocking {
             FragColor = vec4(vec3(brightness), 1.0); // Оттенки серого
         }
     """.trimIndent()
+
+    // Обработка колёсика мыши для изменения позиции камеры
+    var camZ = 3f
+    val camZStep = 0.1f
+    glfwSetScrollCallback(window) { _, _, yoffset ->
+        camZ = (camZ - yoffset.toFloat() * camZStep).coerceIn(zNear, zFar)
+    }
 
     val vertexShader = glCreateShader(GL_VERTEX_SHADER)
     glShaderSource(vertexShader, vertexShaderSource)
@@ -136,10 +137,13 @@ suspend fun main() = runBlocking {
     val projectionArray = FloatArray(16)
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
-    viewMatrix.get(viewArray)
 
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+
+        // Обновляем матрицу вида
+        val viewMatrix = Matrix4f().lookAt(0f, 0f, camZ, 0f, 0f, 0f, 0f, 1f, 0f)
+        viewMatrix.get(viewArray)
 
         simulation.step()
         val updatedPoints = updatePoints(simulation, scale)
