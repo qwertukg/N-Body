@@ -43,6 +43,8 @@ suspend fun main() = runBlocking {
         throw RuntimeException("Не удалось создать окно")
     }
 
+    //glfwWindowHint(GLFW_SAMPLES, 4) // 4x MSAA
+
     glfwMakeContextCurrent(window)
     glfwSwapInterval(0)
     createCapabilities()
@@ -95,37 +97,36 @@ suspend fun main() = runBlocking {
     """.trimIndent()
 
     val geometryShaderSource = """
-#version 460 core
-layout(points) in;
-layout(triangle_strip, max_vertices = 130) out; // Рассчитываем max_vertices для edges = 64
-
-const float pointSize = 0.005; // Радиус круга
-const int edges = 64; // Количество граней
-
-void main() {
-    vec4 center = gl_in[0].gl_Position; // Центр точки
-
-    // Эмитируем вершины круга
-    for (int i = 0; i <= edges; ++i) {
-        // Текущий угол
-        float angle = 2.0 * 3.14159265359 * float(i) / float(edges);
-
-        // Рассчитываем смещение для вершин
-        float xOffset = cos(angle) * pointSize;
-        float yOffset = sin(angle) * pointSize;
-
-        // Добавляем центральную вершину (для каждого треугольника)
-        gl_Position = center;
-        EmitVertex();
-
-        // Добавляем вершину на окружности
-        gl_Position = center + vec4(xOffset, yOffset, 0.0, 0.0);
-        EmitVertex();
-    }
-
-    EndPrimitive();
-}
-
+        #version 460 core
+        layout(points) in;
+        layout(triangle_strip, max_vertices = 130) out; // Рассчитываем max_vertices для edges = 64
+        
+        const float pointSize = 0.005; // Радиус круга
+        const int edges = 64; // Количество граней
+        
+        void main() {
+            vec4 center = gl_in[0].gl_Position; // Центр точки
+        
+            // Эмитируем вершины круга
+            for (int i = 0; i <= edges; ++i) {
+                // Текущий угол
+                float angle = 2.0 * 3.14159265359 * float(i) / float(edges);
+        
+                // Рассчитываем смещение для вершин
+                float xOffset = cos(angle) * pointSize * 6/8; // h/w для выравнивания круга
+                float yOffset = sin(angle) * pointSize;
+        
+                // Добавляем центральную вершину (для каждого треугольника)
+                gl_Position = center;
+                EmitVertex();
+        
+                // Добавляем вершину на окружности
+                gl_Position = center + vec4(xOffset, yOffset, 0.0, 0.0);
+                EmitVertex();
+            }
+        
+            EndPrimitive();
+        }
     """.trimIndent()
 
     val fragmentShaderSource = """
@@ -172,6 +173,16 @@ void main() {
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
     viewMatrix.get(viewArray)
+
+    // Включение MSAA в OpenGL
+    //glEnable(GL_MULTISAMPLE)
+
+    val maxSamples = glGetInteger(GL_MAX_SAMPLES)
+    println("Максимальное количество MSAA сэмплов: $maxSamples")
+    val isMultisampleEnabled = glIsEnabled(GL_MULTISAMPLE)
+    println("MSAA включено: $isMultisampleEnabled")
+    val numSamples = glGetInteger(GL_SAMPLES)
+    println("Количество MSAA сэмплов в текущем контексте: $numSamples")
 
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
