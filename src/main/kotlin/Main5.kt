@@ -27,17 +27,15 @@ fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
 }
 
 suspend fun main() = runBlocking {
-    // Инициализация GLFW
     if (!glfwInit()) {
         throw IllegalStateException("Не удалось инициализировать GLFW")
     }
 
-    // Настройка окна
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
-    val window = glfwCreateWindow(800, 600, "3D Точки с перспективой", NULL, NULL)
+    val window = glfwCreateWindow(800, 600, "Источники света", NULL, NULL)
     if (window == NULL) {
         throw RuntimeException("Не удалось создать окно")
     }
@@ -59,17 +57,15 @@ suspend fun main() = runBlocking {
     glBindVertexArray(vao)
     glBindBuffer(GL_ARRAY_BUFFER, vbo)
 
-    // Выделяем память для буфера
     glBufferData(GL_ARRAY_BUFFER, points.size * java.lang.Float.BYTES.toLong(), GL_DYNAMIC_DRAW)
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * java.lang.Float.BYTES, 0)
     glEnableVertexAttribArray(0)
     glBindVertexArray(0)
 
     // Включение теста глубины
-    glEnable(GL_PROGRAM_POINT_SIZE)
     glEnable(GL_DEPTH_TEST)
 
-    // Создание матрицы перспективной проекции
+    // Матрицы
     val projectionMatrix = Matrix4f().perspective(
         Math.toRadians(45.0).toFloat(),
         800f / 600f,
@@ -83,30 +79,64 @@ suspend fun main() = runBlocking {
         0f, 1f, 0f   // Направление "вверх"
     )
 
-    // Вершинный шейдер
+    // Шейдеры
     val vertexShaderSource = """
         #version 460 core
+
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
         uniform mat4 view;
-
+        
+        out vec3 fragPos;  // Позиция фрагмента в мировых координатах
+        out vec3 normal;   // Нормаль для освещения
+        
         void main() {
+            fragPos = aPos;             // Позиция фрагмента в пространстве мира
+            normal = normalize(aPos);   // Нормаль — это нормализованная позиция
+        
             gl_Position = projection * view * vec4(aPos, 1.0);
-            gl_PointSize = 1.0;
         }
     """.trimIndent()
 
-    // Фрагментный шейдер
     val fragmentShaderSource = """
         #version 460 core
-        out vec4 FragColor;
 
+        in vec3 fragPos; // Позиция фрагмента в мировых координатах
+        in vec3 normal;  // Нормаль фрагмента
+        
+        uniform vec3 lightColor; // Цвет света
+        uniform vec3 lightPos;   // Позиция источника света
+        uniform vec3 viewPos;    // Позиция камеры
+        
+        out vec4 FragColor;
+        
         void main() {
-            FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+            // Цвет материала
+            vec3 objectColor = vec3(1.0, 1.0, 1.0);
+        
+            // Фоновое освещение
+            float ambientStrength = 0.1;
+            vec3 ambient = ambientStrength * lightColor;
+        
+            // Рассеянное освещение
+            vec3 norm = normalize(normal);
+            vec3 lightDir = normalize(lightPos - fragPos);
+            float diff = max(dot(norm, lightDir), 0.0);
+            vec3 diffuse = diff * lightColor;
+        
+            // Спекулярное освещение
+            float specularStrength = 0.5;
+            vec3 viewDir = normalize(viewPos - fragPos);
+            vec3 reflectDir = reflect(-lightDir, norm);
+            float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+            vec3 specular = specularStrength * spec * lightColor;
+        
+            // Итоговый цвет
+            vec3 result = (ambient + diffuse + specular) * objectColor;
+            FragColor = vec4(result, 1.0);
         }
     """.trimIndent()
 
-    // Компиляция шейдеров
     val vertexShader = glCreateShader(GL_VERTEX_SHADER)
     glShaderSource(vertexShader, vertexShaderSource)
     glCompileShader(vertexShader)
@@ -117,7 +147,6 @@ suspend fun main() = runBlocking {
     glCompileShader(fragmentShader)
     checkShaderCompileStatus(fragmentShader)
 
-    // Создание шейдерной программы
     val shaderProgram = glCreateProgram()
     glAttachShader(shaderProgram, vertexShader)
     glAttachShader(shaderProgram, fragmentShader)
@@ -127,26 +156,24 @@ suspend fun main() = runBlocking {
     glDeleteShader(vertexShader)
     glDeleteShader(fragmentShader)
 
-    // Получение uniform-локаций
+    // Локации uniform-переменных
     val projectionLocation = glGetUniformLocation(shaderProgram, "projection")
     val viewLocation = glGetUniformLocation(shaderProgram, "view")
+    val lightColorLocation = glGetUniformLocation(shaderProgram, "lightColor")
+    val lightPosLocation = glGetUniformLocation(shaderProgram, "lightPos")
+    val viewPosLocation = glGetUniformLocation(shaderProgram, "viewPos")
 
-    // Преобразование матриц в массивы
     val projectionArray = FloatArray(16)
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
     viewMatrix.get(viewArray)
 
-    // Главный цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
-        // Очистка экрана
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-        // Обновление координат точек
         simulation.step()
         val updatedPoints = updatePoints(simulation, scale)
 
-        // Обновление данных через glMapBufferRange
         glBindBuffer(GL_ARRAY_BUFFER, vbo)
         val mappedBuffer = glMapBufferRange(
             GL_ARRAY_BUFFER,
@@ -156,16 +183,15 @@ suspend fun main() = runBlocking {
         )?.asFloatBuffer()
         mappedBuffer?.put(updatedPoints)?.flip()
         glUnmapBuffer(GL_ARRAY_BUFFER)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-        // Используем шейдерную программу
         glUseProgram(shaderProgram)
 
-        // Передача матриц
         glUniformMatrix4fv(projectionLocation, false, projectionArray)
         glUniformMatrix4fv(viewLocation, false, viewArray)
+        glUniform3f(lightColorLocation, 1.0f, 1.0f, 1.0f) // Белый свет
+        glUniform3f(lightPosLocation, 0.0f, 0.0f, 3.0f)   // Позиция света
+        glUniform3f(viewPosLocation, 0.0f, 0.0f, 3.0f)    // Позиция камеры
 
-        // Рисуем точки
         glBindVertexArray(vao)
         glDrawArrays(GL_POINTS, 0, points.size / 3)
 
@@ -173,7 +199,6 @@ suspend fun main() = runBlocking {
         glfwPollEvents()
     }
 
-    // Очистка ресурсов
     glDeleteVertexArrays(vao)
     glDeleteBuffers(vbo)
     glDeleteProgram(shaderProgram)
