@@ -1,33 +1,17 @@
+package kz.qwertukg.nBodyApp.app7
+
 import kotlinx.coroutines.runBlocking
 import kz.qwertukg.nBodyApp.checkProgramLinkStatus
 import kz.qwertukg.nBodyApp.checkShaderCompileStatus
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import kz.qwertukg.nBodyApp.old.init
+import kz.qwertukg.nBodyApp.updatePoints
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
-
-fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
-    val x = simulation.particleX
-    val y = simulation.particleY
-    val z = simulation.particleZ
-
-    if (x.size != y.size || y.size != z.size) {
-        throw IllegalArgumentException("Все массивы должны быть одинаковой длины")
-    }
-
-    val updatedPoints = FloatArray(x.size * 3)
-    for (i in x.indices) {
-        updatedPoints[i * 3] = (x[i] - simulation.config.worldWidth / 2) / scale
-        updatedPoints[i * 3 + 1] = (y[i] - simulation.config.worldHeight / 2) / scale
-        updatedPoints[i * 3 + 2] = (z[i] - simulation.config.worldDepth / 2) / scale
-    }
-
-    return updatedPoints
-}
 
 suspend fun main() = runBlocking {
     val config = SimulationConfig()
