@@ -1,4 +1,4 @@
-package kz.qwertukg.nBodyApp
+package kz.qwertukg.nBodyApp.old
 
 import javafx.animation.AnimationTimer
 import javafx.application.Application

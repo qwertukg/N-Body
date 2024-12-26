@@ -1,4 +1,4 @@
-package kz.qwertukg.nBodyApp.app4
+package kz.qwertukg.nBodyApp.app6
 
 import kz.qwertukg.nBodyApp.old.init
 import kotlinx.coroutines.runBlocking
@@ -52,11 +52,13 @@ suspend fun main() = runBlocking {
     glEnable(GL_DEPTH_TEST)
 
     // Матрицы
+    val zNear = 0.1f
+    val zFar = 10.0f
     val projectionMatrix = Matrix4f().perspective(
         Math.toRadians(45.0).toFloat(),
         800f / 600f,
-        0.1f,
-        10.0f
+        zNear,
+        zFar
     )
 
     val viewMatrix = Matrix4f().lookAt(
@@ -65,25 +67,44 @@ suspend fun main() = runBlocking {
         0f, 1f, 0f   // Направление "вверх"
     )
 
-    // Вершинный шейдер
+    // Шейдеры
     val vertexShaderSource = """
         #version 460 core
+        
         layout(location = 0) in vec3 aPos;
         uniform mat4 projection;
         uniform mat4 view;
-
+        
+        out float fragDistance; // Передаем расстояние до камеры во фрагментный шейдер
+        
         void main() {
-            gl_Position = projection * view * vec4(aPos, 1.0);
+            // Преобразуем позицию в пространство камеры
+            vec4 viewPosition = view * vec4(aPos, 1.0);
+            fragDistance = -viewPosition.z; // Расстояние до камеры (z отрицательный)
+        
+            gl_Position = projection * viewPosition;
         }
+
     """.trimIndent()
 
-    // Фрагментный шейдер
     val fragmentShaderSource = """
         #version 460 core
-        out vec4 FragColor;
 
+        in float fragDistance; // Расстояние до камеры, переданное из вершинного шейдера
+        uniform float zNear;   // Ближняя плоскость отсечения
+        uniform float zFar;    // Дальняя плоскость отсечения
+        
+        out vec4 FragColor;
+        
         void main() {
-            FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белый цвет
+            // Нормализация расстояния в диапазон [0, 1]
+            float normalizedDistance = clamp((fragDistance - zNear) / (zFar - zNear), 0.0, 1.0);
+        
+            // Яркость обратно пропорциональна расстоянию
+            float brightness = 1.0 - normalizedDistance;
+        
+            // Результирующий цвет (чем ближе, тем ярче, дальше — темнее)
+            FragColor = vec4(vec3(brightness), 1.0); // Оттенки серого
         }
     """.trimIndent()
 
@@ -109,9 +130,8 @@ suspend fun main() = runBlocking {
     // Локации uniform-переменных
     val projectionLocation = glGetUniformLocation(shaderProgram, "projection")
     val viewLocation = glGetUniformLocation(shaderProgram, "view")
-    val lightColorLocation = glGetUniformLocation(shaderProgram, "lightColor")
-    val lightPosLocation = glGetUniformLocation(shaderProgram, "lightPos")
-    val viewPosLocation = glGetUniformLocation(shaderProgram, "viewPos")
+    val zNearLocation = glGetUniformLocation(shaderProgram, "zNear")
+    val zFarLocation = glGetUniformLocation(shaderProgram, "zFar")
 
     val projectionArray = FloatArray(16)
     val viewArray = FloatArray(16)
@@ -138,9 +158,8 @@ suspend fun main() = runBlocking {
 
         glUniformMatrix4fv(projectionLocation, false, projectionArray)
         glUniformMatrix4fv(viewLocation, false, viewArray)
-        glUniform3f(lightColorLocation, 1.0f, 1.0f, 1.0f) // Белый свет
-        glUniform3f(lightPosLocation, 0.0f, 0.0f, 3.0f)   // Позиция света
-        glUniform3f(viewPosLocation, 0.0f, 0.0f, 3.0f)    // Позиция камеры
+        glUniform1f(zNearLocation, zNear) // Ближняя плоскость
+        glUniform1f(zFarLocation, zFar) // Дальняя плоскость
 
         glBindVertexArray(vao)
         glDrawArrays(GL_POINTS, 0, points.size / 3)
@@ -156,4 +175,3 @@ suspend fun main() = runBlocking {
     glfwDestroyWindow(window)
     glfwTerminate()
 }
-

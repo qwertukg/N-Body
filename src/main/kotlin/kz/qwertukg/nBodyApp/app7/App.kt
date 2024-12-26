@@ -1,16 +1,33 @@
-package kz.qwertukg.nBodyApp.app4
-
-import kz.qwertukg.nBodyApp.old.init
 import kotlinx.coroutines.runBlocking
 import kz.qwertukg.nBodyApp.checkProgramLinkStatus
 import kz.qwertukg.nBodyApp.checkShaderCompileStatus
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
-import kz.qwertukg.nBodyApp.updatePoints
+import kz.qwertukg.nBodyApp.old.init
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
+
+fun updatePoints(simulation: ParticleMeshSimulation, scale: Float): FloatArray {
+    val x = simulation.particleX
+    val y = simulation.particleY
+    val z = simulation.particleZ
+
+    if (x.size != y.size || y.size != z.size) {
+        throw IllegalArgumentException("Все массивы должны быть одинаковой длины")
+    }
+
+    val updatedPoints = FloatArray(x.size * 3)
+    for (i in x.indices) {
+        updatedPoints[i * 3] = (x[i] - simulation.config.worldWidth / 2) / scale
+        updatedPoints[i * 3 + 1] = (y[i] - simulation.config.worldHeight / 2) / scale
+        updatedPoints[i * 3 + 2] = (z[i] - simulation.config.worldDepth / 2) / scale
+    }
+
+    return updatedPoints
+}
 
 suspend fun main() = runBlocking {
     if (!glfwInit()) {
@@ -21,7 +38,7 @@ suspend fun main() = runBlocking {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
-    val window = glfwCreateWindow(800, 600, "Источники света", NULL, NULL)
+    val window = glfwCreateWindow(800, 600, "3D Точки с геометрическим шейдером", NULL, NULL)
     if (window == NULL) {
         throw RuntimeException("Не удалось создать окно")
     }
@@ -65,7 +82,7 @@ suspend fun main() = runBlocking {
         0f, 1f, 0f   // Направление "вверх"
     )
 
-    // Вершинный шейдер
+    // Шейдеры
     val vertexShaderSource = """
         #version 460 core
         layout(location = 0) in vec3 aPos;
@@ -77,7 +94,39 @@ suspend fun main() = runBlocking {
         }
     """.trimIndent()
 
-    // Фрагментный шейдер
+    val geometryShaderSource = """
+#version 460 core
+layout(points) in;
+layout(triangle_strip, max_vertices = 18) out; // Используем triangle_strip для круга
+
+const float pointSize = 0.005; // Радиус круга
+
+void main() {
+    vec4 center = gl_in[0].gl_Position; // Центр точки
+
+    // Эмитируем вершины круга
+    for (int i = 0; i <= 8; ++i) {
+        // Текущий угол
+        float angle = 2.0 * 3.14159265359 * float(i) / 8.0;
+
+        // Рассчитываем смещение для вершин
+        float xOffset = cos(angle) * pointSize;
+        float yOffset = sin(angle) * pointSize;
+
+        // Добавляем центральную вершину (для каждого треугольника)
+        gl_Position = center;
+        EmitVertex();
+
+        // Добавляем вершину на окружности
+        gl_Position = center + vec4(xOffset, yOffset, 0.0, 0.0);
+        EmitVertex();
+    }
+
+    EndPrimitive();
+}
+
+    """.trimIndent()
+
     val fragmentShaderSource = """
         #version 460 core
         out vec4 FragColor;
@@ -92,6 +141,11 @@ suspend fun main() = runBlocking {
     glCompileShader(vertexShader)
     checkShaderCompileStatus(vertexShader)
 
+    val geometryShader = glCreateShader(GL_GEOMETRY_SHADER)
+    glShaderSource(geometryShader, geometryShaderSource)
+    glCompileShader(geometryShader)
+    checkShaderCompileStatus(geometryShader)
+
     val fragmentShader = glCreateShader(GL_FRAGMENT_SHADER)
     glShaderSource(fragmentShader, fragmentShaderSource)
     glCompileShader(fragmentShader)
@@ -99,19 +153,19 @@ suspend fun main() = runBlocking {
 
     val shaderProgram = glCreateProgram()
     glAttachShader(shaderProgram, vertexShader)
+    glAttachShader(shaderProgram, geometryShader)
     glAttachShader(shaderProgram, fragmentShader)
     glLinkProgram(shaderProgram)
     checkProgramLinkStatus(shaderProgram)
 
     glDeleteShader(vertexShader)
+    glDeleteShader(geometryShader)
     glDeleteShader(fragmentShader)
 
-    // Локации uniform-переменных
+    // Получение uniform-локаций
     val projectionLocation = glGetUniformLocation(shaderProgram, "projection")
     val viewLocation = glGetUniformLocation(shaderProgram, "view")
-    val lightColorLocation = glGetUniformLocation(shaderProgram, "lightColor")
-    val lightPosLocation = glGetUniformLocation(shaderProgram, "lightPos")
-    val viewPosLocation = glGetUniformLocation(shaderProgram, "viewPos")
+    val pointSizeLocation = glGetUniformLocation(shaderProgram, "pointSize")
 
     val projectionArray = FloatArray(16)
     val viewArray = FloatArray(16)
@@ -138,9 +192,7 @@ suspend fun main() = runBlocking {
 
         glUniformMatrix4fv(projectionLocation, false, projectionArray)
         glUniformMatrix4fv(viewLocation, false, viewArray)
-        glUniform3f(lightColorLocation, 1.0f, 1.0f, 1.0f) // Белый свет
-        glUniform3f(lightPosLocation, 0.0f, 0.0f, 3.0f)   // Позиция света
-        glUniform3f(viewPosLocation, 0.0f, 0.0f, 3.0f)    // Позиция камеры
+        glUniform1f(pointSizeLocation, 0.01f) // Размер точки
 
         glBindVertexArray(vao)
         glDrawArrays(GL_POINTS, 0, points.size / 3)
@@ -156,4 +208,3 @@ suspend fun main() = runBlocking {
     glfwDestroyWindow(window)
     glfwTerminate()
 }
-

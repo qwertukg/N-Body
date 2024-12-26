@@ -1,4 +1,4 @@
-package kz.qwertukg.nBodyApp
+package kz.qwertukg.nBodyApp.old
 
 import kotlinx.coroutines.*
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
