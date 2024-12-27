@@ -2,14 +2,6 @@ package kz.qwertukg.nBodyApp.nBodyParticleMesh.generator
 
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.Particle
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.DiskGenerator
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.RandomPlaneGenerator
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.SphereGenerator
-
-// --- Интерфейс для «стратегии генерации» ---
-interface FigureGenerator {
-    fun generate(config: SimulationConfig): List<Particle>
-}
 
 // --- Основной класс Generator, использующий «стратегию» ---
 class Generator(val config: SimulationConfig) {

@@ -5,8 +5,8 @@ import kz.qwertukg.nBodyApp.*
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.Generator
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.CubeGenerator
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.CylinderGenerator
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.CubeGenerator
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.CylinderGenerator
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
