@@ -5,8 +5,8 @@ import kotlin.math.PI
 // Конфигурация симуляции
 data class SimulationConfig(
     val count: Int = 1000000,
-    val screenW: Int = 3024,
-    val screenH: Int = 1964,
+    val screenW: Int = 3440,
+    val screenH: Int = 1440,
     val gridSize: Int = 64,
     val gridSizeX: Int = gridSize * screenW/screenH,
     val gridSizeY: Int = gridSize,
