@@ -20,7 +20,7 @@ data class SimulationConfig(
     var centerX: Float = worldWidth * 0.5f,
     var centerY: Float = worldHeight * 0.5f,
     var centerZ: Float = worldDepth * 0.5f,
-    val minRadius: Double = worldSize * 0.01, // 0.2 ok
+    val minRadius: Double = worldSize * 0.1, // 0.2 ok
     val maxRadius: Double = worldSize * 0.25, // 0.25 ok
     val massFrom: Float =   1.0f,
     val massUntil: Float =  1.1f,
