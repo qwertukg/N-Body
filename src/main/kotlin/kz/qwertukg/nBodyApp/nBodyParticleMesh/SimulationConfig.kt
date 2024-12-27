@@ -1,12 +1,13 @@
 package kz.qwertukg.nBodyApp.nBodyParticleMesh
 
+import kotlin.math.E
 import kotlin.math.PI
 
 // Конфигурация симуляции
 data class SimulationConfig(
     val count: Int = 1000000,
-    val screenW: Int = 3440,
-    val screenH: Int = 1440,
+    val screenW: Int = 3024,
+    val screenH: Int = 1964,
     val gridSize: Int = 64,
     val gridSizeX: Int = gridSize * screenW/screenH,
     val gridSizeY: Int = gridSize,
@@ -20,13 +21,13 @@ data class SimulationConfig(
     var centerX: Float = worldWidth * 0.5f,
     var centerY: Float = worldHeight * 0.5f,
     var centerZ: Float = worldDepth * 0.5f,
-    val minRadius: Double = worldSize * 0.1, // 0.2 ok
-    val maxRadius: Double = worldSize * 0.25, // 0.25 ok
+    val minRadius: Double = worldSize * 0.01, // 0.2 ok
+    val maxRadius: Double = worldSize * 0.5, // 0.25 ok
     val massFrom: Float =   1.0f,
-    val massUntil: Float =  1.1f,
+    val massUntil: Float =  2_000.01f,
     val isDropOutOfBounds: Boolean = false,
     val fov: Float = 1f,
-    val magicConst: Float = (PI * 60).toFloat(), // 3f is ok
+    val magicConst: Float = (4).toFloat(), // 3f is ok
     val isFullScreen: Boolean = true,
     var blackHoleIndex: Int? = null,
     val isFading: Boolean = false,

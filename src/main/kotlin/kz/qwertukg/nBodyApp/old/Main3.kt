@@ -1,7 +1,7 @@
 package kz.qwertukg.nBodyApp.old
 
 import kotlinx.coroutines.*
-import kz.qwertukg.nBodyApp.Generator
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.Generator
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
@@ -10,7 +10,7 @@ import org.lwjgl.opengl.GL11.*
 import java.lang.Math.toRadians
 import kotlin.math.*
 
-fun init(config: SimulationConfig, type: String = "circle"): ParticleMeshSimulation {
+fun init(config: SimulationConfig, type: String = "disc"): ParticleMeshSimulation {
     val particles = Generator(config).generate(type)
     return ParticleMeshSimulation(config).apply {
         initSimulation(particles)

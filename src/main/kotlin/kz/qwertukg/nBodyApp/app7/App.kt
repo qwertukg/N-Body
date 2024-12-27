@@ -2,8 +2,11 @@ package kz.qwertukg.nBodyApp.app7
 
 import kotlinx.coroutines.runBlocking
 import kz.qwertukg.nBodyApp.*
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
-import kz.qwertukg.nBodyApp.old.init
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.Generator
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.CubeGenerator
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.figures.CylinderGenerator
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
@@ -15,15 +18,20 @@ import kotlin.math.sin
 
 suspend fun main() = runBlocking {
     val config = SimulationConfig()
-    val simulation = init(config, "torus")
+    val simulation = ParticleMeshSimulation(config)
+    val generator = Generator(config)
+    generator.registerFigure("cube", CubeGenerator())
+    generator.registerFigure("cylinder", CylinderGenerator())
+    generator.generate("ball").apply { simulation.initSimulation(this) }
+
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
     val pointSize = 0.0003f
     val zNear = 0.001f
     val zFar = 10f
-    var camZ = 0.5f
-    var camAngleX = -0.5f
+    var camZ = 0.3f
+    var camAngleX = -0.0f
     var camAngleY = 0.0f
     val camZStep = 0.01f
     val points = updatePoints(simulation, scale)
@@ -134,6 +142,11 @@ suspend fun main() = runBlocking {
             when (key) {
                 GLFW_KEY_UP -> targetIndex = (targetIndex + 1) % (points.size / 3)
                 GLFW_KEY_DOWN -> targetIndex = (targetIndex - 1 + (points.size / 3)) % (points.size / 3)
+                GLFW_KEY_1 -> generator.generate("disc").apply { simulation.initSimulation(this) }
+                GLFW_KEY_2 -> generator.generate("circle").apply { simulation.initSimulation(this) }
+                GLFW_KEY_3 -> generator.generate("ball").apply { simulation.initSimulation(this) }
+                GLFW_KEY_4 -> generator.generate("cube").apply { simulation.initSimulation(this) }
+                GLFW_KEY_5 -> generator.generate("cylinder").apply { simulation.initSimulation(this) }
             }
         }
     }
