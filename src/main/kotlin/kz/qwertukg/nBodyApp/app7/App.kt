@@ -15,13 +15,17 @@ import kotlin.math.sin
 
 suspend fun main() = runBlocking {
     val config = SimulationConfig()
-    val simulation = init(config)
+    val simulation = init(config, "torus")
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
-    val pointSize = 0.0005f
+    val pointSize = 0.0003f
     val zNear = 0.001f
     val zFar = 10f
+    var camZ = 0.5f
+    var camAngleX = -0.5f
+    var camAngleY = 0.0f
+    val camZStep = 0.01f
     val points = updatePoints(simulation, scale)
 
     if (!glfwInit()) {
@@ -101,10 +105,7 @@ suspend fun main() = runBlocking {
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
 
-    var camZ = 1f
-    var camAngleX = -0.66f
-    var camAngleY = 0.66f
-    val camZStep = 0.1f
+
 
     var lastMouseX = 0.0
     var lastMouseY = 0.0

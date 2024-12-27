@@ -62,7 +62,7 @@ val fragmentShaderSource = """
         out vec4 FragColor;
 
         void main() {
-            float brightness = 1.0 - clamp((fragDistance2 - zNear) / (zFar - zNear) * 5, 0.0, 1.0);
+            float brightness = 1.0 - clamp((fragDistance2 - zNear) / (zFar - zNear) * 10, 0.0, 1.0);
             FragColor = vec4(vec3(brightness), 1.0);
         }
     """.trimIndent()

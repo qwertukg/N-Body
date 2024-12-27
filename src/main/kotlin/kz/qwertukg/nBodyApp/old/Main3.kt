@@ -1,6 +1,7 @@
 package kz.qwertukg.nBodyApp.old
 
 import kotlinx.coroutines.*
+import kz.qwertukg.nBodyApp.Generator
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import org.lwjgl.glfw.GLFW.*
@@ -9,20 +10,8 @@ import org.lwjgl.opengl.GL11.*
 import java.lang.Math.toRadians
 import kotlin.math.*
 
-fun mapToRange(value: Float, oldMin: Float, oldMax: Float, newMin: Float, newMax: Float): Float {
-    // Обратная интерполяция (находим пропорцию в старом диапазоне)
-    val proportion = (value - oldMin) / (oldMax - oldMin)
-    // Линейная интерполяция в новый диапазон
-    return newMin + proportion * (newMax - newMin)
-}
-
-
-fun init(config: SimulationConfig): ParticleMeshSimulation {
-    val particles = generateParticlesCircle(config,
-        config.centerX,
-        config.centerY,
-        config.centerZ
-    )
+fun init(config: SimulationConfig, type: String = "circle"): ParticleMeshSimulation {
+    val particles = Generator(config).generate(type)
     return ParticleMeshSimulation(config).apply {
         initSimulation(particles)
     }

@@ -53,6 +53,7 @@ dependencies {
 
     // Тестирование
     testImplementation(kotlin("test"))
+    implementation(kotlin("reflect"))
 }
 
 application {

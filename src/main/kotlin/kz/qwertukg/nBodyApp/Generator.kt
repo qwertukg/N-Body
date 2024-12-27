@@ -8,19 +8,19 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.random.Random
 
+// TODO
 class Generator(val config: SimulationConfig) {
     fun generate(figureName: String): List<Particle> {
-        val self = Generator(config)
-        val clazz = self::class
-
-        val generateMethods = clazz.members.filter {
-            val methodName = it.name.toLowerCase()
-            "generate" in methodName && figureName.toLowerCase() in methodName
+        return when (figureName.toLowerCase()) {
+            "circle" -> generateParticlesCircle()
+            "torus" -> generateParticlesTorus()
+            "box" -> generateParticlesBox()
+            "line" -> generateParticlesLine()
+            "discxy" -> generateParticlesDiskXY()
+            "discxz" -> generateParticlesDiskXZ()
+            else -> throw NotImplementedError()
         }
-
-        return generateMethods.first().call(self) as List<Particle>
     }
-
 
     fun generateParticlesDiskXZ(): List<Particle> {
         var sumM = 0.0
@@ -169,23 +169,21 @@ class Generator(val config: SimulationConfig) {
         var sumMy = 0.0
         var sumMz = 0.0
 
-//        val particles = mutableListOf<Particle>().apply {
-//            Particle()
-//        }
+        val cx = config.centerX
+        val cy = config.centerY
+        val cz = config.centerZ
+        val particles = mutableListOf<Particle>()
 
-        val particles = MutableList(config.count) {
+        repeat(config.count) {
             val orbitR = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
             val angle1 = Random.nextDouble(0.0, 2 * PI)
             val angle2 = Random.nextDouble(0.0, PI)
 
-            val x = 0f + (orbitR * cos(angle1) * sin(angle2)).toFloat()
-            val y = 0f + (orbitR * sin(angle1) * sin(angle2)).toFloat()
-            val z = 0f + (orbitR * cos(angle2)).toFloat()
+            val x = cx + (orbitR * cos(angle1) * sin(angle2)).toFloat()
+            val y = cy + (orbitR * sin(angle1) * sin(angle2)).toFloat()
+            val z = cz + (orbitR * cos(angle2)).toFloat()
 
             val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
-            val vx = 0f
-            val vy = 0f
-            val vz = 0f
             val r = sqrt(m) / 100
 
             sumM += m
@@ -193,7 +191,7 @@ class Generator(val config: SimulationConfig) {
             sumMy += m * y
             sumMz += m * z
 
-            Particle(x, y, z, vx, vy, vz, m, r)
+            particles.add(Particle(x, y, z, 0f, 0f, 0f, m, r))
         }
 
         val totalMass = sumM.toFloat()
@@ -226,6 +224,10 @@ class Generator(val config: SimulationConfig) {
                 particles[i] = Particle(p.x, p.y, p.z, 0f, 0f, 0f, p.m, p.r)
             }
         }
+
+        val sM = (config.massUntil / 2) * config.count * 1000
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, sM, sqrt(sM))
+        particles.add(star)
         return particles
     }
 
@@ -235,7 +237,12 @@ class Generator(val config: SimulationConfig) {
         var sumMy = 0.0
         var sumMz = 0.0
 
-        val particles = MutableList(config.count) {
+        val cx = config.centerX
+        val cy = config.centerY
+        val cz = config.centerZ
+        val particles = mutableListOf<Particle>()
+
+        repeat(config.count) {
             // Генерация точек в форме тора
             val R = config.minRadius // Большой радиус тора
             val r = config.maxRadius - config.minRadius // Малый радиус тора
@@ -245,9 +252,9 @@ class Generator(val config: SimulationConfig) {
             val phi = Random.nextDouble(0.0, 2 * PI)   // Угол на окружности малого радиуса
 
             // Координаты частицы
-            val x = 0f + ((R + r * cos(phi)) * cos(theta)).toFloat()
-            val y = 0f + ((R + r * cos(phi)) * sin(theta)).toFloat()
-            val z = 0f + (r * sin(phi)).toFloat()
+            val x = cx + ((R + r * cos(phi)) * cos(theta)).toFloat()
+            val y = cy + ((R + r * cos(phi)) * sin(theta)).toFloat()
+            val z = cz + (r * sin(phi)).toFloat()
 
             // Масса и радиус частицы
             val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
@@ -259,7 +266,7 @@ class Generator(val config: SimulationConfig) {
             sumMy += m * y
             sumMz += m * z
 
-            Particle(x, y, z, 0f, 0f, 0f, m, rParticle)
+            particles.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
         val totalMass = sumM.toFloat()
@@ -301,6 +308,11 @@ class Generator(val config: SimulationConfig) {
                 particles[i] = Particle(p.x, p.y, p.z, 0f, 0f, 0f, p.m, p.r)
             }
         }
+
+        val sM = (config.massUntil / 2) * config.count * 1000
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, sM, sqrt(sM))
+        particles.add(star)
+
         return particles
     }
 
