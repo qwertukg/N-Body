@@ -3,7 +3,6 @@ package kz.qwertukg.nBodyApp.app7
 import kotlinx.coroutines.runBlocking
 import kz.qwertukg.nBodyApp.checkProgramLinkStatus
 import kz.qwertukg.nBodyApp.checkShaderCompileStatus
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import kz.qwertukg.nBodyApp.old.init
 import kz.qwertukg.nBodyApp.updatePoints
@@ -197,6 +196,16 @@ suspend fun main() = runBlocking {
         }
     }
 
+    var targetIndex = 0
+    glfwSetKeyCallback(window) { _, key, _, action, _ ->
+        if (action == GLFW_PRESS) {
+            when (key) {
+                GLFW_KEY_UP -> targetIndex = (targetIndex + 1) % (points.size / 3)
+                GLFW_KEY_DOWN -> targetIndex = (targetIndex - 1 + (points.size / 3)) % (points.size / 3)
+            }
+        }
+    }
+
     glfwSetScrollCallback(window) { _, _, yoffset ->
         camZ = (camZ - yoffset.toFloat() * camZStep).coerceIn(zNear, zFar)
     }
@@ -204,19 +213,27 @@ suspend fun main() = runBlocking {
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
+        simulation.step()
+        val updatedPoints = updatePoints(simulation, scale)
+
+        val point = Vector3f(
+            updatedPoints[targetIndex * 3 + 0],
+            updatedPoints[targetIndex * 3 + 1],
+            updatedPoints[targetIndex * 3 + 2]
+        )
+
         // Вычисляем положение камеры на орбите
         val cameraPos = Vector3f(
-            camZ * cos(camAngleY) * sin(camAngleX),
-            camZ * sin(camAngleY),
-            camZ * cos(camAngleY) * cos(camAngleX)
+            point.x + camZ * cos(camAngleY) * sin(camAngleX),
+            point.y + camZ * sin(camAngleY),
+            point.z + camZ * cos(camAngleY) * cos(camAngleX)
         )
 
         val viewMatrix = Matrix4f()
-            .lookAt(cameraPos, Vector3f(0f, 0f, 0f), Vector3f(0f, 1f, 0f))
+            .lookAt(cameraPos, point, Vector3f(0f, 1f, 0f))
         viewMatrix.get(viewArray)
 
-        simulation.step()
-        val updatedPoints = updatePoints(simulation, scale)
+
 
         glBindBuffer(GL_ARRAY_BUFFER, vbo)
         val mappedBuffer = glMapBufferRange(

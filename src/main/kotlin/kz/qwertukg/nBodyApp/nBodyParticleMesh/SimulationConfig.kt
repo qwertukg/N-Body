@@ -24,7 +24,7 @@ data class SimulationConfig(
     val maxRadius: Double = worldSize * 0.25, // 0.25 ok
     val massFrom: Float =   10000f,
     val massUntil: Float =  10001f,
-    val isDropOutOfBounds: Boolean = true,
+    val isDropOutOfBounds: Boolean = false,
     val fov: Float = 1f,
     val magicConst: Float = PI.toFloat(), // 3f is ok
     val isFullScreen: Boolean = true,
