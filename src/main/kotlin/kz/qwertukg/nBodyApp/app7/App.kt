@@ -1,11 +1,9 @@
 package kz.qwertukg.nBodyApp.app7
 
 import kotlinx.coroutines.runBlocking
-import kz.qwertukg.nBodyApp.checkProgramLinkStatus
-import kz.qwertukg.nBodyApp.checkShaderCompileStatus
+import kz.qwertukg.nBodyApp.*
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
 import kz.qwertukg.nBodyApp.old.init
-import kz.qwertukg.nBodyApp.updatePoints
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
@@ -157,13 +155,13 @@ suspend fun main() = runBlocking {
 
         // Вычисляем положение камеры на орбите
         val cameraPos = Vector3f(
-            point.x + camZ * cos(camAngleY) * sin(camAngleX),
-            point.y + camZ * sin(camAngleY),
-            point.z + camZ * cos(camAngleY) * cos(camAngleX)
+            /*point.x + */camZ * cos(camAngleY) * sin(camAngleX),
+            /*point.y + */camZ * sin(camAngleY),
+            /*point.z + */camZ * cos(camAngleY) * cos(camAngleX)
         )
 
         val viewMatrix = Matrix4f()
-            .lookAt(cameraPos, point, Vector3f(0f, 1f, 0f))
+            .lookAt(cameraPos, Vector3f(0f, 0f, 0f), Vector3f(0f, 1f, 0f))
         viewMatrix.get(viewArray)
 
 
