@@ -21,13 +21,13 @@ data class SimulationConfig(
     var centerX: Float = worldWidth * 0.5f,
     var centerY: Float = worldHeight * 0.5f,
     var centerZ: Float = worldDepth * 0.5f,
-    val minRadius: Double = worldSize * 0.01, // 0.2 ok
-    val maxRadius: Double = worldSize * 0.5, // 0.25 ok
+    var minRadius: Double = worldSize * 0.2, // 0.2 ok
+    var maxRadius: Double = worldSize * 0.25, // 0.25 ok
     val massFrom: Float =   1.0f,
-    val massUntil: Float =  2_000.01f,
+    val massUntil: Float =  25_000.01f,
     val isDropOutOfBounds: Boolean = false,
     val fov: Float = 1f,
-    val magicConst: Float = (4).toFloat(), // 3f is ok
+    val magicConst: Float = (PI).toFloat(), // 3f is ok
     val isFullScreen: Boolean = true,
     var blackHoleIndex: Int? = null,
     val isFading: Boolean = false,

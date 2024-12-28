@@ -4,9 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kz.qwertukg.nBodyApp.*
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
 import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.Generator
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.CubeGenerator
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.CylinderGenerator
+import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.*
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
@@ -15,14 +13,30 @@ import org.joml.Matrix4f
 import org.joml.Vector3f
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 suspend fun main() = runBlocking {
     val config = SimulationConfig()
     val simulation = ParticleMeshSimulation(config)
     val generator = Generator(config)
-    generator.registerFigure("cube", CubeGenerator())
-    generator.registerFigure("cylinder", CylinderGenerator())
-    generator.generate("ball").apply { simulation.initSimulation(this) }
+    generator.registerFigure(GLFW_KEY_1.toString(), DiskGenerator())
+    generator.registerFigure(GLFW_KEY_2.toString(), MobiusStripGenerator())
+    generator.registerFigure(GLFW_KEY_3.toString(), SphereGenerator())
+    generator.registerFigure(GLFW_KEY_4.toString(), CubeGenerator())
+    generator.registerFigure(GLFW_KEY_5.toString(), CylinderGenerator())
+    generator.registerFigure(GLFW_KEY_6.toString(), ConeGenerator())
+    generator.registerFigure(GLFW_KEY_7.toString(), TorusGenerator())
+    generator.registerFigure(GLFW_KEY_8.toString(), HemisphereGenerator())
+    generator.registerFigure(GLFW_KEY_9.toString(), DoubleConeGenerator())
+    generator.registerFigure(GLFW_KEY_0.toString(), RidgesCylinderGenerator())
+    generator.registerFigure(GLFW_KEY_Q.toString(), PyramidGenerator())
+    generator.registerFigure(GLFW_KEY_W.toString(), SineWaveTorusGenerator())
+    generator.registerFigure(GLFW_KEY_E.toString(), RandomClustersGenerator())
+    generator.registerFigure(GLFW_KEY_R.toString(), RandomNoiseSphereGenerator())
+    generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
+
+    var rndFigureGen = generator.figureGenerators.values.random()
+    rndFigureGen.generate(config).apply { simulation.initSimulation(this) }
 
     val w = simulation.config.screenW
     val h = simulation.config.screenH
@@ -142,11 +156,13 @@ suspend fun main() = runBlocking {
             when (key) {
                 GLFW_KEY_UP -> targetIndex = (targetIndex + 1) % (points.size / 3)
                 GLFW_KEY_DOWN -> targetIndex = (targetIndex - 1 + (points.size / 3)) % (points.size / 3)
-                GLFW_KEY_1 -> generator.generate("disc").apply { simulation.initSimulation(this) }
-                GLFW_KEY_2 -> generator.generate("circle").apply { simulation.initSimulation(this) }
-                GLFW_KEY_3 -> generator.generate("ball").apply { simulation.initSimulation(this) }
-                GLFW_KEY_4 -> generator.generate("cube").apply { simulation.initSimulation(this) }
-                GLFW_KEY_5 -> generator.generate("cylinder").apply { simulation.initSimulation(this) }
+                GLFW_KEY_SPACE -> {
+                    config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
+                    config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
+                    rndFigureGen = generator.figureGenerators.values.random()
+                    rndFigureGen.generate(config).apply { simulation.initSimulation(this) }
+                }
+                else -> generator.generate(key.toString()).apply { simulation.initSimulation(this) }
             }
         }
     }
