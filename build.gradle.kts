@@ -2,6 +2,7 @@ plugins {
     kotlin("jvm") version "1.9.23"
     application
     id("org.openjfx.javafxplugin") version "0.0.14"
+    kotlin("plugin.serialization") version "2.1.0"
 }
 
 group = "kz.qwertukg"
@@ -30,6 +31,7 @@ val javafxPlatform = when {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     // https://mvnrepository.com/artifact/org.joml/joml
     implementation("org.joml:joml:1.10.8")
 
