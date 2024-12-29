@@ -5,6 +5,7 @@ import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
 
 // --- Основной класс Generator, использующий «стратегию» ---
 class Generator(val config: SimulationConfig) {
+    var current: String = ""
     val figureGenerators: MutableMap<String, FigureGenerator> = mutableMapOf()
 
     fun registerFigure(name: String, generator: FigureGenerator) {
@@ -15,7 +16,7 @@ class Generator(val config: SimulationConfig) {
         val gen = figureGenerators[figureName.lowercase()]
             ?: figureGenerators[figureGenerators.keys.first()] ?:
                 throw NotImplementedError("No figures")
-
+        current = figureName
         return gen.generate(config)
     }
 }

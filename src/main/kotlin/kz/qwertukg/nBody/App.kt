@@ -40,11 +40,10 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
 
 
-    generator.generate(GLFW_KEY_4.toString()).apply { simulation.initSimulation(this) }
+    generator.generate(GLFW_KEY_1.toString()).apply { simulation.initSimulation(this) }
 
     simulation.stepWithFFT()
     simulation.setCircularOrbitsAroundCenterOfMassDirect()
-2
 
     val w = simulation.config.screenW
     val h = simulation.config.screenH
@@ -53,7 +52,7 @@ suspend fun main() = runBlocking {
     val zNear = 0.001f
     val zFar = 10f
     var camZ = 0.3f
-    var camAngleX = -0.0f
+    var camAngleX = 0.0f
     var camAngleY = 0.0f
     val camZStep = 0.01f
     val points = updatePoints(simulation, scale)
@@ -135,8 +134,6 @@ suspend fun main() = runBlocking {
     val viewArray = FloatArray(16)
     projectionMatrix.get(projectionArray)
 
-
-
     var lastMouseX = 0.0
     var lastMouseY = 0.0
     var isDragging = false
@@ -158,19 +155,25 @@ suspend fun main() = runBlocking {
         }
     }
 
-    var targetIndex = 0
     glfwSetKeyCallback(window) { _, key, _, action, _ ->
         if (action == GLFW_PRESS) {
             when (key) {
-                GLFW_KEY_UP -> targetIndex = (targetIndex + 1) % (points.size / 3)
-                GLFW_KEY_DOWN -> targetIndex = (targetIndex - 1 + (points.size / 3)) % (points.size / 3)
                 GLFW_KEY_SPACE -> {
                     config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
-                    val rndFigureGen = generator.figureGenerators.values.random()
-                    rndFigureGen.generate(config).apply { simulation.initSimulation(this) }
+                    generator.generate(generator.current).apply { simulation.initSimulation(this) }
+                    runBlocking {
+                        simulation.stepWithFFT()
+                    }
+                    simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
-                else -> generator.generate(key.toString()).apply { simulation.initSimulation(this) }
+                else -> {
+                    generator.generate(key.toString()).apply { simulation.initSimulation(this) }
+                    runBlocking {
+                        simulation.stepWithFFT()
+                    }
+                    simulation.setCircularOrbitsAroundCenterOfMassDirect()
+                }
             }
         }
     }
@@ -182,21 +185,14 @@ suspend fun main() = runBlocking {
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-        //simulation.step()
         simulation.stepWithFFT()
         val updatedPoints = updatePoints(simulation, scale)
 
-        val point = Vector3f(
-            updatedPoints[targetIndex * 3 + 0],
-            updatedPoints[targetIndex * 3 + 1],
-            updatedPoints[targetIndex * 3 + 2]
-        )
-
         // Вычисляем положение камеры на орбите
         val cameraPos = Vector3f(
-            /*point.x + */camZ * cos(camAngleY) * sin(camAngleX),
-            /*point.y + */camZ * sin(camAngleY),
-            /*point.z + */camZ * cos(camAngleY) * cos(camAngleX)
+            camZ * cos(camAngleY) * sin(camAngleX),
+            camZ * sin(camAngleY),
+            camZ * cos(camAngleY) * cos(camAngleX)
         )
 
         val viewMatrix = Matrix4f()

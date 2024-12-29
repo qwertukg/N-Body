@@ -3,6 +3,7 @@ package kz.qwertukg.nBody.nBodyParticleMesh
 import kotlinx.coroutines.*
 import org.joml.Vector3f
 import org.jtransforms.fft.FloatFFT_3D
+import kotlin.math.PI
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -54,7 +55,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
      * @param dt Шаг времени, на который обновляем систему.
      */
     suspend fun stepWithFFT() = coroutineScope {
-        val dt = config.dt
         // 1) Обнуляем massGrid
         massGrid.fill(0f)
 
@@ -116,15 +116,15 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
 
         for (x in 0 until gX) {
             val kxInt = if (x <= gX / 2) x else x - gX
-            val kx = (2.0 * Math.PI * kxInt) / Lx
+            val kx = (2.0 * PI * kxInt) / Lx
 
             for (y in 0 until gY) {
                 val kyInt = if (y <= gY / 2) y else y - gY
-                val ky = (2.0 * Math.PI * kyInt) / Ly
+                val ky = (2.0 * PI * kyInt) / Ly
 
                 for (z in 0 until gZ) {
                     val kzInt = if (z <= gZ / 2) z else z - gZ
-                    val kz = (2.0 * Math.PI * kzInt) / Lz
+                    val kz = (2.0 * PI * kzInt) / Lz
 
                     val idx = x*gY*gZ + y*gZ + z
                     val reIndex = 2 * idx
@@ -140,7 +140,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                         complexData[reIndex] = 0f
                         complexData[imIndex] = 0f
                     } else {
-                        val scale = -(4.0 * Math.PI * G / kSq).toFloat()
+                        val scale = -(4.0 * PI * G / kSq).toFloat()
                         complexData[reIndex] = re * scale
                         complexData[imIndex] = im * scale
                     }
@@ -251,121 +251,15 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         }.awaitAll()
     }
 
-    suspend fun setCircularOrbitsAroundCenterOfMass(
-        crossBase: Vector3f = Vector3f(0f, 0f, 1f)
-    ) = coroutineScope {
-        val totalCount = particleX.size
-        if (totalCount == 0) return@coroutineScope
-
-        // 1) Находим центр масс системы
-        var totalMass = 0f
-        var sumX = 0f
-        var sumY = 0f
-        var sumZ = 0f
-
-        for (i in 0 until totalCount) {
-            val m = particleM[i]
-            sumX += particleX[i] * m
-            sumY += particleY[i] * m
-            sumZ += particleZ[i] * m
-            totalMass += m
-        }
-        if (totalMass < 1e-12f) return@coroutineScope  // все массы нулевые?
-
-        val cmX = sumX / totalMass
-        val cmY = sumY / totalMass
-        val cmZ = sumZ / totalMass
-
-        // 2) Для каждой частицы определяем круговую орбиту вокруг (cmX, cmY, cmZ)
-        val dx = cellWidth
-        val dy = cellHeight
-        val dz = cellDepth
-
-        // Для параллельности (optional), разбиваем на чанки
-        val availableProcessors = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
-        val chunkSize = (totalCount / availableProcessors).coerceAtLeast(1)
-
-        (0 until totalCount step chunkSize).map { startIndex ->
-            async(Dispatchers.Default) {
-                val endIndex = min(startIndex + chunkSize, totalCount)
-                for (i in startIndex until endIndex) {
-                    // Радиус-вектор rVec от центра масс к частице
-                    val rx = particleX[i] - cmX
-                    val ry = particleY[i] - cmY
-                    val rz = particleZ[i] - cmZ
-                    val rVec = Vector3f(rx, ry, rz)
-                    val dist = rVec.length()
-
-                    // Если частица практически в центре масс
-                    if (dist < 1e-8f) {
-                        particleVx[i] = 0f
-                        particleVy[i] = 0f
-                        particleVz[i] = 0f
-                        continue
-                    }
-
-                    // Индексы ячейки (зажимаем в [1..gX-2], чтобы можно было брать соседние)
-                    val cx = (particleX[i] / dx).toInt().coerceIn(1, gX - 2)
-                    val cy = (particleY[i] / dy).toInt().coerceIn(1, gY - 2)
-                    val cz = (particleZ[i] / dz).toInt().coerceIn(1, gZ - 2)
-                    val base = cx*gY*gZ + cy*gZ + cz
-
-                    // Численно вычислим градиент потенциала
-                    val dPhidx = (potentialGrid[base + gY*gZ] - potentialGrid[base - gY*gZ]) / (2f * dx)
-                    val dPhidy = (potentialGrid[base + gZ]   - potentialGrid[base - gZ])   / (2f * dy)
-                    val dPhidz = (potentialGrid[base + 1]    - potentialGrid[base - 1])    / (2f * dz)
-
-                    // Сила: F = -m_i * grad(Φ)
-                    val m_i = particleM[i]
-                    val fx = -m_i * dPhidx
-                    val fy = -m_i * dPhidy
-                    val fz = -m_i * dPhidz
-
-                    // Радиальная компонента F_r = F • (rVec / |rVec|)
-                    val invDist = 1f / dist
-                    val rxNorm = rx * invDist
-                    val ryNorm = ry * invDist
-                    val rzNorm = rz * invDist
-                    val fRadial = fx*rxNorm + fy*ryNorm + fz*rzNorm
-
-                    // Условие круговой орбиты: m_i * v^2 / r = F_r -> v = sqrt( r * F_r / m_i )
-                    if (fRadial <= 1e-12f) {
-                        // Сила почти нулевая или отрицательная — круговая орбита не получится
-                        particleVx[i] = 0f
-                        particleVy[i] = 0f
-                        particleVz[i] = 0f
-                        continue
-                    }
-                    val v = sqrt(dist * fRadial / m_i)
-
-                    // Направление скорости: перпендикулярно rVec
-                    val crossCandidate = Vector3f()
-                    rVec.cross(crossBase, crossCandidate)
-                    // Если crossCandidate почти 0, возьмём (1,0,0)
-                    if (crossCandidate.length() < 1e-8f) {
-                        rVec.cross(Vector3f(1f,0f,0f), crossCandidate)
-                    }
-                    crossCandidate.normalize()
-
-                    // Устанавливаем скорости
-                    particleVx[i] = crossCandidate.x * v
-                    particleVy[i] = crossCandidate.y * v
-                    particleVz[i] = crossCandidate.z * v
-                }
-            }
-        }.awaitAll()
-    }
-
     fun setCircularOrbitsAroundCenterOfMassDirect(crossBase: Vector3f = Vector3f(0f, 0f, 1f)) {
         val totalCount = particleX.size
         if (totalCount == 0) return
 
-        // 1) Считаем суммарную массу и координаты центра масс
+        // 1) Находим суммарную массу и координаты центра масс
         var totalMass = 0f
         var sumX = 0f
         var sumY = 0f
         var sumZ = 0f
-
         for (i in 0 until totalCount) {
             val m = particleM[i]
             sumX += particleX[i] * m
@@ -373,25 +267,27 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
             sumZ += particleZ[i] * m
             totalMass += m
         }
-        if (totalMass < 1e-12f) return  // все массы нулевые
+        if (totalMass < 1e-12f) return  // Вся масса ~0? — выходим
 
         val cmX = sumX / totalMass
         val cmY = sumY / totalMass
         val cmZ = sumZ / totalMass
 
-        // 2) Для каждой частицы задаём скорость, исходя из расстояния r_i до (cmX, cmY, cmZ).
-        //    v_i = sqrt(G * totalMass / r_i), направление перпендикулярно r_i
-        val G = config.g  // Или любая другая выбранная "грав. постоянная" в вашей системе
+        // Шаги по осям (размеры ячеек)
+        val dx = cellWidth
+        val dy = cellHeight
+        val dz = cellDepth
 
+        // 2) Для каждой частицы считаем «круговую» орбиту вокруг (cmX, cmY, cmZ)
         for (i in 0 until totalCount) {
-            // Радиус-вектор rVec = (x_i - cmX, y_i - cmY, z_i - cmZ)
+            // Радиус-вектор от ЦМ к частице
             val rx = particleX[i] - cmX
             val ry = particleY[i] - cmY
             val rz = particleZ[i] - cmZ
             val rVec = Vector3f(rx, ry, rz)
             val dist = rVec.length()
 
-            // Если частица практически в центре масс — обнуляем скорость
+            // Если частица практически в центре масс
             if (dist < 1e-8f) {
                 particleVx[i] = 0f
                 particleVy[i] = 0f
@@ -399,31 +295,56 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                 continue
             }
 
-            // Орбитальная скорость: v = sqrt( G * M_total / r )
-            val v = sqrt(G * totalMass / dist)
+            // Индексы в сетке потенциала (зажимаем в [1..gX-2], чтобы не выйти за границы)
+            val cx = (particleX[i] / dx).toInt().coerceIn(1, gX - 2)
+            val cy = (particleY[i] / dy).toInt().coerceIn(1, gY - 2)
+            val cz = (particleZ[i] / dz).toInt().coerceIn(1, gZ - 2)
+            val base = cx*gY*gZ + cy*gZ + cz
 
-            // Определяем направление, перпендикулярное rVec.
-            // Используем cross(rVec, crossBase). Если вектор слишком мал, берём запасной (1,0,0)
-            val crossCandidate = Vector3f()
-            rVec.cross(crossBase, crossCandidate)
-            if (crossCandidate.length() < 1e-8f) {
-                rVec.cross(Vector3f(1f, 0f, 0f), crossCandidate)
+            // Численный градиент потенциала
+            val dPhidx = (potentialGrid[base + gY*gZ] - potentialGrid[base - gY*gZ]) / (2f * dx)
+            val dPhidy = (potentialGrid[base + gZ]   - potentialGrid[base - gZ])   / (2f * dy)
+            val dPhidz = (potentialGrid[base + 1]    - potentialGrid[base - 1])    / (2f * dz)
+
+            // Сила: F = -m_i * grad(Φ)
+            val m_i = particleM[i]
+            val fx = -m_i * dPhidx
+            val fy = -m_i * dPhidy
+            val fz = -m_i * dPhidz
+
+            // Радиальная компонента F_r = F • (rVec / |rVec|)
+            val invDist = 1f / dist
+            val rxNorm = rx * invDist
+            val ryNorm = ry * invDist
+            val rzNorm = rz * invDist
+            val fRadial = fx*rxNorm + fy*ryNorm + fz*rzNorm
+
+            // Если fRadial < 0, сила направлена «в центр», значит это обычная притягивающая гравитация
+            if (fRadial < 0f) {
+                // Условие круговой орбиты: m_i * v^2 / r = -fRadial => v = sqrt( r * (-fRadial) / m_i )
+                val v = sqrt(dist * (-fRadial) / m_i)
+
+                // Направление скорости: перпендикулярно rVec
+                val crossCandidate = Vector3f()
+                rVec.cross(crossBase, crossCandidate)
+                // Если crossBase оказался почти сонаправлен с rVec, используем запасной вектор (1,0,0)
+                if (crossCandidate.length() < 1e-8f) {
+                    rVec.cross(Vector3f(1f, 0f, 0f), crossCandidate)
+                }
+                crossCandidate.normalize()
+
+                // Задаём скорости
+                particleVx[i] = crossCandidate.x * v
+                particleVy[i] = crossCandidate.y * v
+                particleVz[i] = crossCandidate.z * v
+            } else {
+                // Если fRadial >= 0, значит сила наружу или 0 — для гравитации это необычно
+                particleVx[i] = 0f
+                particleVy[i] = 0f
+                particleVz[i] = 0f
             }
-            crossCandidate.normalize()
-
-            // Умножаем направление на модуль скорости
-            val vx = crossCandidate.x * v
-            val vy = crossCandidate.y * v
-            val vz = crossCandidate.z * v
-
-            // Присваиваем новые скорости
-            val k = 10000f
-            particleVx[i] = vx * k
-            particleVy[i] = vy * k
-            particleVz[i] = vz * k
         }
     }
-
 }
 
 
