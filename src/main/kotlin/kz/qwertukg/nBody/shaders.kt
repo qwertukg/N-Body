@@ -1,4 +1,4 @@
-package kz.qwertukg.nBodyApp
+package kz.qwertukg.nBody
 
 val vertexShaderSource = """
         #version 410 core

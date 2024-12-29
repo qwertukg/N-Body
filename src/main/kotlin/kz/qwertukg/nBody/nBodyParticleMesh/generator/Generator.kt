@@ -1,7 +1,7 @@
-package kz.qwertukg.nBodyApp.nBodyParticleMesh.generator
+package kz.qwertukg.nBody.nBodyParticleMesh.generator
 
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.Particle
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBody.nBodyParticleMesh.Particle
+import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
 
 // --- Основной класс Generator, использующий «стратегию» ---
 class Generator(val config: SimulationConfig) {
@@ -13,7 +13,8 @@ class Generator(val config: SimulationConfig) {
 
     fun generate(figureName: String): List<Particle> {
         val gen = figureGenerators[figureName.lowercase()]
-            ?: throw NotImplementedError("Нет генератора для фигуры '$figureName'")
+            ?: figureGenerators[figureGenerators.keys.first()] ?:
+                throw NotImplementedError("No figures")
 
         return gen.generate(config)
     }

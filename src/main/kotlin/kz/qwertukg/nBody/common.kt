@@ -1,6 +1,6 @@
-package kz.qwertukg.nBodyApp
+package kz.qwertukg.nBody
 
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBody.nBodyParticleMesh.ParticleMeshSimulation
 import org.lwjgl.opengl.GL46.*
 
 

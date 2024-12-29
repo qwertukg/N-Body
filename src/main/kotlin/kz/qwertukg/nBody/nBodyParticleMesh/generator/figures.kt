@@ -1,7 +1,7 @@
-package kz.qwertukg.nBodyApp.nBodyParticleMesh.generator
+package kz.qwertukg.nBody.nBodyParticleMesh.generator
 
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.Particle
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBody.nBodyParticleMesh.Particle
+import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
 import org.joml.Vector3f
 import kotlin.math.*
 import kotlin.random.Random
@@ -523,8 +523,6 @@ class TorusGenerator : FigureGenerator {
             Vector3f(0f, 0f, 1f)
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
         return particles
     }
 }
@@ -570,8 +568,6 @@ class HemisphereGenerator : FigureGenerator {
             Vector3f(0f, 0f, 1f)
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
         return particles
     }
 }
@@ -620,8 +616,6 @@ class DoubleConeGenerator : FigureGenerator {
             Vector3f(0f, 0f, 1f)
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
         return particles
     }
 }
@@ -670,8 +664,6 @@ class SpiralBandGenerator : FigureGenerator {
             Vector3f(0f, 0f, 1f)
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
         return particles
     }
 }
@@ -684,7 +676,7 @@ class CubeGenerator : FigureGenerator {
         val cz = config.centerZ
 
         // Предположим, что minRadius < maxRadius
-        val side = config.maxRadius - config.minRadius
+        val side = config.maxRadius
         val halfSide = side / 2f
 
         val particles = mutableListOf<Particle>()
@@ -707,23 +699,18 @@ class CubeGenerator : FigureGenerator {
         }
 
         // Задаём орбитальные скорости (перенесённый общий код)
-        val starMass = 1_000_000_000f
         OrbitalVelocityUtils.assignOrbitalVelocities(
             particles  = particles,
             centerX    = cx,
             centerY    = cy,
             centerZ    = cz,
-            starMass   = starMass,
+            starMass   = 1_000_000_000f,
             g          = config.g,
             magicConst = config.magicConst
         ) { _ ->
             // Для куба можно взять в качестве базового cross-вектора, скажем, ось Z
             Vector3f(0f, 0f, 1f)
         }
-
-        // Добавляем "звезду"
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
 
         return particles
     }
@@ -793,39 +780,46 @@ class RandomOrbitsGenerator : FigureGenerator {
     )
 
     override fun generate(config: SimulationConfig): List<Particle> {
-        // Координаты центра
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
+        val starMass = 1_000_000_000f
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
 
         val particles = mutableListOf<Particle>()
-
+        var d = 0.1f
         // Генерация случайных координат в объёме между rIn и rOut
         repeat(config.count) {
             // Масса частицы
-            val m = 1f
 
-            // Создаём частицу (скорости пока 0)
-            // displaySize для наглядности сделаем sqrt(m)
-            particles.add(
-                Particle(
-                    x = cx + it/10,
-                    y = cy,
-                    z = cz,
-                    vx = 0f,
-                    vy = -1000f,
-                    vz = 0f,
-                    m = m,
-                    r = sqrt(m)
-                )
+            val m = 1f
+            var particle = Particle(
+                x = cx + d,
+                y = cy,
+                z = cz,
+                vx = 0f,
+                vy = 0f + d/10,
+                vz = 0f,
+                m = m,
+                r = sqrt(m)
             )
+            d +=  1f
+
+            //particle = OrbitalVelocityUtils.computeCircularOrbit(particle, star, config)
+
+            particles.add(particle)
         }
 
-        // Задаём орбитальные скорости
-        val starMass = 1_000_000_000f
+
+
+        /*OrbitalVelocityUtils.assignOrbitalVelocities(particles, cx, cy, cz, starMass, config.g, config.magicConst) {
+            Vector3f(0f, 1f, 0f)
+        }*/
+
+
 
         // Добавляем "звезду"
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+
         particles.add(star)
 
         return particles
@@ -857,18 +851,18 @@ class DiskGenerator : FigureGenerator {
 
         // 2) Задаём орбитальные скорости (весь дублирующийся код - в едином методе!)
         val starMass = 1_000_000_000f
-        OrbitalVelocityUtils.assignOrbitalVelocities(
-            particles = particles,
-            centerX = cx,
-            centerY = cy,
-            centerZ = cz,
-            starMass = starMass,
-            g = config.g,
-            magicConst = config.magicConst
-        ) { _ ->  // базовый вектор для cross
-            // Для диска берём ось Z
-            Vector3f(0f, 0f, 1f)
-        }
+//        OrbitalVelocityUtils.assignOrbitalVelocities(
+//            particles = particles,
+//            centerX = cx,
+//            centerY = cy,
+//            centerZ = cz,
+//            starMass = starMass,
+//            g = config.g,3
+//            magicConst = config.magicConst
+//        ) { _ ->  // базовый вектор для cross
+//            // Для диска берём ось Z
+//            Vector3f(0f, 0f, 1f)
+//        }
 
         // 3) Добавляем звезду
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
@@ -959,9 +953,6 @@ class SphereGenerator : FigureGenerator {
         val cz = config.centerZ
         val particles = mutableListOf<Particle>()
 
-        val starMass = 1_000_000_000f
-        val g = config.g
-
         // 1) Генерация координат (равномерная в объёме сферы)
         repeat(config.count) {
             val alpha = Random.nextFloat()
@@ -986,22 +977,20 @@ class SphereGenerator : FigureGenerator {
         }
 
         // 2) Орбитальные скорости (вынесены во внешнюю функцию)
+        val starMass = 1_000_000_000f
         OrbitalVelocityUtils.assignOrbitalVelocities(
             particles = particles,
             centerX = cx,
             centerY = cy,
             centerZ = cz,
             starMass = starMass,
-            g = g,
+            g = config.g,
             magicConst = config.magicConst
         ) { _ ->
             // Для сферы в качестве базового cross-вектора чаще всего
             // берут что-то типа (0,1,0).
             Vector3f(0f, 1f, 0f)
         }
-
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
 
         return particles
     }

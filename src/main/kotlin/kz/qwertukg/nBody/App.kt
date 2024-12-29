@@ -1,22 +1,26 @@
-package kz.qwertukg.nBodyApp.app7
+package kz.qwertukg.nBody
 
 import kotlinx.coroutines.runBlocking
-import kz.qwertukg.nBodyApp.*
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.ParticleMeshSimulation
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.SimulationConfig
-import kz.qwertukg.nBodyApp.nBodyParticleMesh.generator.*
+import kotlinx.serialization.json.Json
+import kz.qwertukg.nBody.nBodyParticleMesh.Particle
+import kz.qwertukg.nBody.nBodyParticleMesh.ParticleMeshSimulation
+import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBody.nBodyParticleMesh.fromJson
+import kz.qwertukg.nBody.nBodyParticleMesh.generator.*
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL.*
 import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import java.io.File
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 suspend fun main() = runBlocking {
-    val config = SimulationConfig()
+    val config = fromJson("src/main/resources/config.json")
     val simulation = ParticleMeshSimulation(config)
     val generator = Generator(config)
     generator.registerFigure(GLFW_KEY_1.toString(), DiskGenerator())
@@ -35,8 +39,12 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_R.toString(), RandomNoiseSphereGenerator())
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
 
-    var rndFigureGen = generator.figureGenerators.values.random()
-    rndFigureGen.generate(config).apply { simulation.initSimulation(this) }
+
+    generator.generate(GLFW_KEY_4.toString()).apply { simulation.initSimulation(this) }
+
+    simulation.stepWithFFT()
+    simulation.setCircularOrbitsAroundCenterOfMassDirect()
+2
 
     val w = simulation.config.screenW
     val h = simulation.config.screenH
@@ -159,7 +167,7 @@ suspend fun main() = runBlocking {
                 GLFW_KEY_SPACE -> {
                     config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
-                    rndFigureGen = generator.figureGenerators.values.random()
+                    val rndFigureGen = generator.figureGenerators.values.random()
                     rndFigureGen.generate(config).apply { simulation.initSimulation(this) }
                 }
                 else -> generator.generate(key.toString()).apply { simulation.initSimulation(this) }
@@ -174,7 +182,8 @@ suspend fun main() = runBlocking {
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-        simulation.step()
+        //simulation.step()
+        simulation.stepWithFFT()
         val updatedPoints = updatePoints(simulation, scale)
 
         val point = Vector3f(

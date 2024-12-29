@@ -31,7 +31,11 @@ val javafxPlatform = when {
 }
 
 dependencies {
+    // https://mvnrepository.com/artifact/com.github.wendykierp/JTransforms
+    implementation("com.github.wendykierp:JTransforms:3.1")
+
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
     // https://mvnrepository.com/artifact/org.joml/joml
     implementation("org.joml:joml:1.10.8")
 
