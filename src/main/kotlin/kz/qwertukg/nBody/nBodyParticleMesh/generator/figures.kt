@@ -6,6 +6,36 @@ import org.joml.Vector3f
 import kotlin.math.*
 import kotlin.random.Random
 
+// --- Генератор «диска» (disk) ---
+class OrbitalDiskGenerator : FigureGenerator {
+    override fun generate(config: SimulationConfig): List<Particle> {
+        val cx = config.centerX
+        val cy = config.centerY
+        val cz = config.centerZ
+        val particles = mutableListOf<Particle>()
+
+        // 1) Генерация координат
+        repeat(config.count) {
+            val r = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
+            val theta = Random.nextDouble(0.0, 2 * PI)
+            val thetaZ = Random.nextDouble(0.0, 2 * PI)
+
+            val x = cx + (r * cos(theta) * sin(thetaZ)).toFloat()
+            val y = cy + (r * sin(theta) * sin(thetaZ)).toFloat()
+            val z = cz + (r * cos(thetaZ)).toFloat()
+
+            val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
+            particles.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+        }
+
+        val starMass = 1_000_000_000f
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
+
+        return particles
+    }
+}
+
 /**
  * 1) Лента Мёбиуса (Mobius Strip)
  *    Параметры (в params):
@@ -14,15 +44,14 @@ import kotlin.random.Random
  *      "twists"      - сколько "поворотов" делает лента (по умолчанию 1)
  */
 class MobiusStripGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
-        val majorR = params["majorRadius"] ?: config.maxRadius.toFloat()
-        val halfW  = params["width"]       ?: config.minRadius.toFloat()
-        val twists = params["twists"]?.toInt() ?: 1
+        val majorR = config.params["majorRadius"] ?: config.maxRadius.toFloat()
+        val halfW  = config.params["width"]       ?: config.minRadius.toFloat()
+        val twists = config.params["twists"]?.toInt() ?: 1
 
         val particles = mutableListOf<Particle>()
 
@@ -73,17 +102,16 @@ class MobiusStripGenerator : FigureGenerator {
  *      "freq"       - частота колебаний (в синусе) вдоль оси z (по умолчанию 2π / height)
  */
 class RidgesCylinderGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
-        val baseR     = params["baseRadius"] ?: config.minRadius.toFloat()
-        val halfH     = params["height"]     ?: config.maxRadius.toFloat()
-        val amplitude = params["amplitude"]  ?: (baseR / 2f)
+        val baseR     = config.params["baseRadius"] ?: config.minRadius.toFloat()
+        val halfH     = config.params["height"]     ?: config.maxRadius.toFloat()
+        val amplitude = config.params["amplitude"]  ?: (baseR / 2f)
         // Если height == 0, freq -> 1, а так берём ~ (2π / (2*halfH)) = π/halfH
-        val freq      = params["freq"]       ?: (PI.toFloat() / halfH)
+        val freq      = config.params["freq"]       ?: (PI.toFloat() / halfH)
 
         val particles = mutableListOf<Particle>()
 
@@ -124,16 +152,15 @@ class RidgesCylinderGenerator : FigureGenerator {
  *      "freq"        - частота синусоиды
  */
 class SineWaveTorusGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
-        val majorR   = params["majorRadius"] ?: config.maxRadius.toFloat()
-        val tubeR    = params["tubeRadius"]  ?: config.minRadius.toFloat()
-        val amplitude= params["amplitude"]   ?: (tubeR.toFloat() / 2f)
-        val freq     = params["freq"]        ?: 3f // например, 3 колебания на 2π
+        val majorR   = config.params["majorRadius"] ?: config.maxRadius.toFloat()
+        val tubeR    = config.params["tubeRadius"]  ?: config.minRadius.toFloat()
+        val amplitude= config.params["amplitude"]   ?: (tubeR.toFloat() / 2f)
+        val freq     = config.params["freq"]        ?: 3f // например, 3 колебания на 2π
 
         val particles = mutableListOf<Particle>()
 
@@ -177,15 +204,14 @@ class SineWaveTorusGenerator : FigureGenerator {
  *    либо воспользуемся random при каждом угле (тоже вариант).
  */
 class RandomNoiseSphereGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
-        val baseR   = params["baseRadius"]     ?: config.maxRadius.toFloat()
-        val amp     = params["noiseAmplitude"] ?: (baseR / 10f)
-        val freq    = params["noiseFreq"] ?: 12f  // кол-во колебаний
+        val baseR   = config.params["baseRadius"]     ?: config.maxRadius.toFloat()
+        val amp     = config.params["noiseAmplitude"] ?: (baseR / 10f)
+        val freq    = config.params["noiseFreq"] ?: 12f  // кол-во колебаний
 
         val particles = mutableListOf<Particle>()
 
@@ -221,16 +247,15 @@ class RandomNoiseSphereGenerator : FigureGenerator {
 
 /** 1) Генератор пирамиды (основание квадратное, вершина в центре). */
 class PyramidGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
         // baseSize — половина стороны основания
-        val baseSize = params["baseSize"] ?: config.minRadius.toFloat()
+        val baseSize = config.params["baseSize"] ?: config.minRadius.toFloat()
         // height — высота пирамиды
-        val height = params["height"] ?: config.maxRadius.toFloat()
+        val height = config.params["height"] ?: config.maxRadius.toFloat()
 
         val particles = mutableListOf<Particle>()
         repeat(config.count) {
@@ -267,16 +292,14 @@ class PyramidGenerator : FigureGenerator {
  *      - "spread" (как далеко кластеры разлетаются от центра).
  */
 class RandomClustersGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
-
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
-        val clusters = params["clusters"] ?: 100f
-        val clusterRadius = params["clusterRadius"] ?: config.minRadius.toFloat()
-        val spread = params["spread"] ?: config.maxRadius.toFloat()
+        val clusters = config.params["clusters"] ?: 100f
+        val clusterRadius = config.params["clusterRadius"] ?: config.minRadius.toFloat()
+        val spread = config.params["spread"] ?: config.maxRadius.toFloat()
 
         // Превращаем "clusters" в Int (округлим)
         val clusterCount = clusters.toInt().coerceAtLeast(1)
@@ -358,7 +381,6 @@ class RandomClustersGenerator : FigureGenerator {
 
 /** 1) Генерация конуса (ось вдоль Z, вершина в центре, основание в плоскости z = -height). */
 class ConeGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -401,7 +423,6 @@ class ConeGenerator : FigureGenerator {
 
 /** 2) Генерация тора (ось вдоль Z, центр тора в (cx,cy,cz), радиус "трубы" = minRadius, радиус "кольца" = maxRadius). */
 class TorusGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -442,7 +463,6 @@ class TorusGenerator : FigureGenerator {
 
 /** 3) Генерация полушара (ось вдоль Z, "нижнее" основание в плоскости z=0). */
 class HemisphereGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -483,7 +503,6 @@ class HemisphereGenerator : FigureGenerator {
 
 /** 4) Генерация "двойного конуса": конус вверх и конус вниз (ось вдоль Z, вершины соединены в центре). */
 class DoubleConeGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -526,7 +545,6 @@ class DoubleConeGenerator : FigureGenerator {
 }
 
 class CubeGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -564,7 +582,6 @@ class CubeGenerator : FigureGenerator {
 }
 
 class CylinderGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -605,10 +622,6 @@ class CylinderGenerator : FigureGenerator {
 }
 
 class RandomOrbitsGenerator : FigureGenerator {
-    override val params = mutableMapOf<String, Float>(
-        "outerRadius" to 100f,
-        "innerRadius" to 0f
-    )
 
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
@@ -647,7 +660,6 @@ class RandomOrbitsGenerator : FigureGenerator {
 
 // --- Генератор «диска» (disk) ---
 class DiskGenerator : FigureGenerator {
-    override var params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -676,67 +688,8 @@ class DiskGenerator : FigureGenerator {
     }
 }
 
-// --- Генератор «случайной плоскости» (circle) ---
-class RandomPlaneGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
-    override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
-
-        // 1) Случайная нормаль
-        val phi = Random.nextDouble(0.0, 2.0 * PI)
-        val cosTheta = Random.nextDouble(-1.0, 1.0)
-        val sinTheta = sqrt(1.0 - cosTheta * cosTheta)
-
-        val nx = (sinTheta * cos(phi)).toFloat()
-        val ny = (sinTheta * sin(phi)).toFloat()
-        val nz = cosTheta.toFloat()
-        val normal = Vector3f(nx, ny, nz).normalize()
-
-        // 2) Строим ортонормированный базис (u, v) в этой плоскости
-        val maybeZ = Vector3f(0f, 0f, 1f)
-        val u = Vector3f()
-        normal.cross(maybeZ, u)
-        if (u.length() < 1e-8f) {
-            normal.cross(Vector3f(0f, 1f, 0f), u)
-        }
-        u.normalize()
-
-        val v = Vector3f()
-        normal.cross(u, v)
-        v.normalize()
-
-        // 3) Генерация координат
-        val particles = mutableListOf<Particle>()
-        repeat(config.count) {
-            val r = Random.nextDouble(config.minRadius.toDouble(), config.maxRadius.toDouble()).toFloat()
-            val angle = Random.nextDouble(0.0, 2.0 * PI)
-
-            val localX = (r * cos(angle)).toFloat()
-            val localY = (r * sin(angle)).toFloat()
-
-            val pos = Vector3f(u).mul(localX).add(Vector3f(v).mul(localY))
-
-            val px = cx + pos.x
-            val py = cy + pos.y
-            val pz = cz + pos.z
-
-            val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
-            particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
-        }
-
-        val starMass = 1_000_000_000f
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
-        return particles
-    }
-}
-
 // --- Генератор «сферы» (ball) ---
 class SphereGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY

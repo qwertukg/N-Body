@@ -268,7 +268,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
             sumZ += particleZ[i] * m
             totalMass += m
         }
-        if (totalMass < 0f) return  // Вся масса ~0? — выходим
+        if (totalMass < 1e-12f) return  // Вся масса ~0? — выходим
 
         val cmX = sumX / totalMass
         val cmY = sumY / totalMass
@@ -289,7 +289,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
             val dist = rVec.length()
 
             // Если частица практически в центре масс
-            if (dist < 0f) {
+            if (dist < 1e-8f) {
                 particleVx[i] = 0f
                 particleVy[i] = 0f
                 particleVz[i] = 0f
@@ -330,7 +330,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
                 if (!rnd) rVec.cross(crossBase, crossCandidate)
                 else rVec.cross(Vector3f(Random.nextFloat(), Random.nextFloat(), Random.nextFloat()), crossCandidate)
                 // Если crossBase оказался почти сонаправлен с rVec, используем запасной вектор (1,0,0)
-                if (crossCandidate.length() < 0f) {
+                if (crossCandidate.length() < 1e-8f) {
                     rVec.cross(Vector3f(Random.nextFloat(), Random.nextFloat(), Random.nextFloat()), crossCandidate)
                 }
                 crossCandidate.normalize()

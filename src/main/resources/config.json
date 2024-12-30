@@ -1,6 +1,6 @@
 {
-  "count": 1000000,
-  "screenW": 1440,
+  "count": 500000,
+  "screenW": 3440,
   "screenH": 1440,
   "gridSize": 64,
   "worldSize": 1000000,
@@ -10,6 +10,7 @@
   "maxRadius": 500000,
   "massFrom": 1.0,
   "massUntil": 1.1,
-  "isFullScreen": false,
-  "isDropOutOfBounds": true
+  "isFullScreen": true,
+  "isDropOutOfBounds": true,
+  "params": {}
 }

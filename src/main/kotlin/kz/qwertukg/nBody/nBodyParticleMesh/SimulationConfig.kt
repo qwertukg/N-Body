@@ -21,7 +21,7 @@ data class SimulationConfig(
     val massUntil: Float =  25_000.01f,
     val isFullScreen: Boolean = true,
     val isDropOutOfBounds: Boolean = true,
-    val figureParams: MutableMap<String, Float> = mutableMapOf()
+    val params: MutableMap<String, Float> = mutableMapOf()
 ) {
     val gridSizeX: Int = gridSize * screenW/screenH
     val gridSizeY: Int = gridSize
