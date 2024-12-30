@@ -1,16 +1,16 @@
 {
-  "count": 500000,
+  "count": 1000000,
   "screenW": 3440,
   "screenH": 1440,
   "gridSize": 64,
   "worldSize": 1000000,
   "g": 6.67430e-11,
   "dt": 1,
-  "minRadius": 0,
-  "maxRadius": 500000,
+  "minRadius": 10000,
+  "maxRadius": 300000,
   "massFrom": 1.0,
-  "massUntil": 1.1,
+  "massUntil": 2500.1,
   "isFullScreen": true,
-  "isDropOutOfBounds": true,
+  "isDropOutOfBounds": false,
   "params": {}
 }

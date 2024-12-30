@@ -8,6 +8,8 @@ import kotlin.math.min
 import kotlin.math.sqrt
 import kotlin.random.Random
 
+
+
 // Основной класс симуляции
 class ParticleMeshSimulation(val config: SimulationConfig) {
     // Массивы координат и характеристик частиц
@@ -35,7 +37,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
     // Одномерные массивы для масс и потенциалов
     private val massGrid = FloatArray(gxGyGz)
     private val potentialGrid = FloatArray(gxGyGz)
-    private val tempPotential = FloatArray(gxGyGz)
 
     fun initSimulation(particles: List<Particle>) {
         val totalCount = particles.size
@@ -252,7 +253,7 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         }.awaitAll()
     }
 
-    fun setCircularOrbitsAroundCenterOfMassDirect(rnd: Boolean = true, crossBase: Vector3f = Vector3f(0f, 0f, 1f)) {
+    fun setCircularOrbitsAroundCenterOfMassDirect(rnd: Boolean = false, crossBase: Vector3f = Vector3f(0f, 0f, 1f)) {
         val totalCount = particleX.size
         if (totalCount == 0) return
 

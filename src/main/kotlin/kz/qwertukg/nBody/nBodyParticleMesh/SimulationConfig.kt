@@ -9,6 +9,7 @@ import kotlin.math.PI
 @Serializable
 data class SimulationConfig(
     val count: Int,
+    val maxParticlesCount: Int = 2_000_000,
     val screenW: Int = 3440,
     val screenH: Int = 1440,
     val gridSize: Int = 64,

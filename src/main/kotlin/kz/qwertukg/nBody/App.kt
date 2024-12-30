@@ -23,6 +23,7 @@ suspend fun main() = runBlocking {
     val config = fromJson("src/main/resources/config.json")
     val simulation = ParticleMeshSimulation(config)
     val generator = Generator(config)
+    generator.registerFigure(GLFW_KEY_F1.toString(), OrbitalDiskGenerator())
     generator.registerFigure(GLFW_KEY_1.toString(), DiskGenerator())
     generator.registerFigure(GLFW_KEY_2.toString(), MobiusStripGenerator())
     generator.registerFigure(GLFW_KEY_3.toString(), SphereGenerator())
@@ -40,15 +41,18 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
 
 
-    generator.generate(GLFW_KEY_1.toString()).apply { simulation.initSimulation(this) }
 
+//    val galaxy = generateParticles(config)
+//    simulation.initSimulation(galaxy)
+
+    generator.generate(GLFW_KEY_F1.toString()).apply { simulation.initSimulation(this) }
     simulation.stepWithFFT()
     simulation.setCircularOrbitsAroundCenterOfMassDirect()
 
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
-    val pointSize = 0.0003f
+    val pointSize = 0.0002f
     val zNear = 0.001f
     val zFar = 10f
     var camZ = 0.3f
@@ -97,17 +101,17 @@ suspend fun main() = runBlocking {
     )
 
     val vertexShader = glCreateShader(GL_VERTEX_SHADER)
-    glShaderSource(vertexShader, vertexShaderSource)
+    glShaderSource(vertexShader, VERTEX_SHADER_SRC)
     glCompileShader(vertexShader)
     checkShaderCompileStatus(vertexShader)
 
     val geometryShader = glCreateShader(GL_GEOMETRY_SHADER)
-    glShaderSource(geometryShader, geometryShaderSource)
+    glShaderSource(geometryShader, GEOMETRY_SHADER_SRC)
     glCompileShader(geometryShader)
     checkShaderCompileStatus(geometryShader)
 
     val fragmentShader = glCreateShader(GL_FRAGMENT_SHADER)
-    glShaderSource(fragmentShader, fragmentShaderSource)
+    glShaderSource(fragmentShader, FRAGMENT_SHADER_SRC)
     glCompileShader(fragmentShader)
     checkShaderCompileStatus(fragmentShader)
 
@@ -157,20 +161,23 @@ suspend fun main() = runBlocking {
 
     glfwSetKeyCallback(window) { _, key, _, action, _ ->
         if (action == GLFW_PRESS) {
+            val dtStep = 0.1f
             when (key) {
+                GLFW_KEY_UP ->  config.dt += dtStep
+                GLFW_KEY_DOWN -> config.dt -= dtStep
                 GLFW_KEY_SPACE -> {
                     config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
                     generator.generate(generator.current).apply { simulation.initSimulation(this) }
                     runBlocking {
-                        simulation.stepWithFFT()
+                        //simulation.stepWithFFT()
                     }
                     simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
                 else -> {
                     generator.generate(key.toString()).apply { simulation.initSimulation(this) }
                     runBlocking {
-                        simulation.stepWithFFT()
+                        //simulation.stepWithFFT()
                     }
                     simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }

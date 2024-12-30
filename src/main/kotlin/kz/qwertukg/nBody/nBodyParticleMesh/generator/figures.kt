@@ -6,33 +6,86 @@ import org.joml.Vector3f
 import kotlin.math.*
 import kotlin.random.Random
 
+val starMass = 1_000_000_000f
+
 // --- Генератор «диска» (disk) ---
 class OrbitalDiskGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
-        val particles = mutableListOf<Particle>()
 
-        // 1) Генерация координат
-        repeat(config.count) {
-            val r = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
+        val blackHole = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+
+        val redDwarfStars = mutableListOf<Particle>()
+        val mediumMassStars = mutableListOf<Particle>()
+        val massiveStars = mutableListOf<Particle>()
+        val superMassiveStars = mutableListOf<Particle>()
+        val stellarRemnants = mutableListOf<Particle>()
+        val h = 2_000.0
+        val maxR = 120_000.0
+
+        repeat(320_000) {
+            val r = Random.nextDouble(0.0, maxR).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
-            val thetaZ = Random.nextDouble(0.0, 2 * PI)
+            val x = cx + (r * cos(theta)).toFloat()
+            val y = cy + (r * sin(theta)).toFloat()
+            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
+            val m = Random.nextDouble(0.08, 0.6).toFloat()
 
-            val x = cx + (r * cos(theta) * sin(thetaZ)).toFloat()
-            val y = cy + (r * sin(theta) * sin(thetaZ)).toFloat()
-            val z = cz + (r * cos(thetaZ)).toFloat()
-
-            val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
-            particles.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+            redDwarfStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
+        repeat(60_000) {
+            val r = Random.nextDouble(0.0, maxR).toFloat()
+            val theta = Random.nextDouble(0.0, 2 * PI)
+            val x = cx + (r * cos(theta)).toFloat()
+            val y = cy + (r * sin(theta)).toFloat()
+            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
+            val m = Random.nextDouble(0.6, 1.5).toFloat()
 
-        return particles
+            mediumMassStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+        }
+
+        repeat(20_000) {
+            val r = Random.nextDouble(0.0, maxR).toFloat()
+            val theta = Random.nextDouble(0.0, 2 * PI)
+            val x = cx + (r * cos(theta)).toFloat()
+            val y = cy + (r * sin(theta)).toFloat()
+            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
+            val m = Random.nextDouble(1.5, 8.0).toFloat()
+
+            massiveStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+        }
+
+        repeat(2_000) {
+            val r = Random.nextDouble(0.0, maxR).toFloat()
+            val theta = Random.nextDouble(0.0, 2 * PI)
+            val x = cx + (r * cos(theta)).toFloat()
+            val y = cy + (r * sin(theta)).toFloat()
+            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
+            val m = Random.nextDouble(8.0, 150.0).toFloat()
+
+            superMassiveStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+        }
+
+        repeat(50_000) {
+            val r = Random.nextDouble(0.0, maxR).toFloat()
+            val theta = Random.nextDouble(0.0, 2 * PI)
+            val x = cx + (r * cos(theta)).toFloat()
+            val y = cy + (r * sin(theta)).toFloat()
+            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
+            val m = Random.nextDouble(0.9, 1.1).toFloat()
+
+            stellarRemnants.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+        }
+
+        return listOf(blackHole) +
+                redDwarfStars +
+                mediumMassStars +
+                massiveStars +
+                superMassiveStars +
+                stellarRemnants
     }
 }
 
@@ -83,7 +136,6 @@ class MobiusStripGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -135,7 +187,6 @@ class RidgesCylinderGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -185,7 +236,6 @@ class SineWaveTorusGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -237,7 +287,6 @@ class RandomNoiseSphereGenerator : FigureGenerator {
         }
 
         // Орбитальная скорость
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -276,7 +325,6 @@ class PyramidGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -371,7 +419,6 @@ class RandomClustersGenerator : FigureGenerator {
             }
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -413,7 +460,6 @@ class ConeGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz.toFloat(), 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -453,7 +499,6 @@ class TorusGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -493,7 +538,6 @@ class HemisphereGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -536,7 +580,6 @@ class DoubleConeGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz.toFloat(), 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -573,7 +616,6 @@ class CubeGenerator : FigureGenerator {
             particles.add(Particle(px.toFloat(), py.toFloat(), pz.toFloat(), 0f, 0f, 0f, m, rP))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -613,7 +655,6 @@ class CylinderGenerator : FigureGenerator {
             particles.add(Particle(x, y, pz.toFloat(), 0f, 0f, 0f, m, rP))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -650,7 +691,6 @@ class RandomOrbitsGenerator : FigureGenerator {
             particles.add(particle)
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -670,7 +710,7 @@ class DiskGenerator : FigureGenerator {
         repeat(config.count) {
             val r = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
-            val thetaZ = Random.nextDouble(0.0, 2 * PI)
+            val thetaZ = Random.nextDouble(PI/2 - PI/10, PI/2 + PI/10)
 
             val x = cx + (r * cos(theta) * sin(thetaZ)).toFloat()
             val y = cy + (r * sin(theta) * sin(thetaZ)).toFloat()
@@ -680,7 +720,6 @@ class DiskGenerator : FigureGenerator {
             particles.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
@@ -719,10 +758,48 @@ class SphereGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 10_000_000_000f
+
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
         return particles
     }
+}
+
+
+fun generateParticles(config: SimulationConfig): List<Particle> {
+    val particleCount = 1000000
+    val massRange = 0.08f to 100.0f
+    val particles = mutableListOf<Particle>()
+
+    val cx = config.centerX
+    val cy = config.centerY
+    val cz = config.centerZ
+
+    for (i in 0 until particleCount) {
+        // Generate mass
+        val mass = Random.nextFloat() * (massRange.second - massRange.first) + massRange.first
+
+        // Generate spatial coordinates (uniform distribution in spherical volume)
+        val radius = Random.nextFloat() * 50000  // Max radius of 50 kpc
+        val theta = Random.nextFloat() * Math.PI.toFloat()  // Polar angle
+        val phi = Random.nextFloat() * (2 * Math.PI.toFloat())  // Azimuthal angle
+
+        val x = cx + (radius * Math.sin(theta.toDouble()) * Math.cos(phi.toDouble())).toFloat()
+        val y = cy + (radius * Math.sin(theta.toDouble()) * Math.sin(phi.toDouble())).toFloat()
+        val z = cz + (radius * Math.cos(theta.toDouble())).toFloat()
+
+        // Generate velocities (circular orbits with small random variation)
+        val speed = 220f + Random.nextFloat() * 20f  // Around 220 km/s
+        val angle = Random.nextFloat() * (2 * Math.PI.toFloat())
+
+        val vx = (speed * Math.cos(angle.toDouble())).toFloat()
+        val vy = (speed * Math.sin(angle.toDouble())).toFloat()
+        val vz = Random.nextFloat() * 10f - 5f  // Small vertical component
+
+        // Create Particle object
+        particles.add(Particle(x, y, z, vx, vy, vz, mass, sqrt(mass)))
+    }
+
+    return particles
 }
