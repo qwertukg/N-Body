@@ -6,12 +6,10 @@
   "worldSize": 1000000,
   "g": 6.67430e-11,
   "dt": 1,
-  "minRadius": 100000,
-  "maxRadius": 250000,
+  "minRadius": 0,
+  "maxRadius": 500000,
   "massFrom": 1.0,
   "massUntil": 1.1,
-  "magicConst": 8000,
   "isFullScreen": false,
-  "isDropOutOfBounds": false,
-  "figureParams": {}
+  "isDropOutOfBounds": true
 }

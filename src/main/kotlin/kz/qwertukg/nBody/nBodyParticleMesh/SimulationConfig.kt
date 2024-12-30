@@ -19,7 +19,6 @@ data class SimulationConfig(
     var maxRadius: Double = worldSize * 0.25, // 0.25 ok
     val massFrom: Float =   1.0f,
     val massUntil: Float =  25_000.01f,
-    val magicConst: Float = (1).toFloat(), // 3f is ok
     val isFullScreen: Boolean = true,
     val isDropOutOfBounds: Boolean = true,
     val figureParams: MutableMap<String, Float> = mutableMapOf()

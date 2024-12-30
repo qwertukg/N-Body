@@ -647,7 +647,7 @@ class RandomOrbitsGenerator : FigureGenerator {
 
 // --- Генератор «диска» (disk) ---
 class DiskGenerator : FigureGenerator {
-    override val params: MutableMap<String, Float> = mutableMapOf()
+    override var params: MutableMap<String, Float> = mutableMapOf()
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
@@ -656,9 +656,9 @@ class DiskGenerator : FigureGenerator {
 
         // 1) Генерация координат
         repeat(config.count) {
-            val r = Random.nextDouble(config.minRadius.toDouble(), config.maxRadius.toDouble()).toFloat()
+            val r = Random.nextDouble(config.minRadius, config.maxRadius).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
-            val thetaZ = Random.nextDouble(PI / 2.2, PI / 1.9)
+            val thetaZ = Random.nextDouble(0.0, 2 * PI)
 
             val x = cx + (r * cos(theta) * sin(thetaZ)).toFloat()
             val y = cy + (r * sin(theta) * sin(thetaZ)).toFloat()
@@ -766,7 +766,7 @@ class SphereGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val starMass = 1_000_000_000f
+        val starMass = 10_000_000_000f
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
