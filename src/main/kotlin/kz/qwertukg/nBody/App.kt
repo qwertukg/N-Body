@@ -186,15 +186,26 @@ suspend fun main() = runBlocking {
         simulation.stepWithFFT()
         val updatedPoints = updatePoints(simulation, scale)
 
+        // центрируемся на первой частице (индекс 0)
+        val focusPos = Vector3f(
+            updatedPoints[0],
+            updatedPoints[1],
+            updatedPoints[2]
+        )
+
         // Вычисляем положение камеры на орбите
         val cameraPos = Vector3f(
             camZ * cos(camAngleY) * sin(camAngleX),
             camZ * sin(camAngleY),
             camZ * cos(camAngleY) * cos(camAngleX)
-        )
+        ).add(focusPos)
+
+        // динамический «up»: как только камера переходит через полюс, вектор up инвертируется,
+        // и lookAt не попадает в сингулярность (камера продолжает вращение без рывка)
+        val upVec = if (cos(camAngleY) >= 0f) Vector3f(0f, 1f, 0f) else Vector3f(0f, -1f, 0f)
 
         val viewMatrix = Matrix4f()
-            .lookAt(cameraPos, Vector3f(0f, 0f, 0f), Vector3f(0f, 1f, 0f))
+            .lookAt(cameraPos, focusPos, upVec)
         viewMatrix.get(viewArray)
 
         glBindBuffer(GL_ARRAY_BUFFER, vbo)

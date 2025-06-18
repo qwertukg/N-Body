@@ -109,6 +109,8 @@ class MobiusStripGenerator : FigureGenerator {
         val twists = config.params["twists"]?.toInt() ?: 1
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         // Применим классические параметры "t" в [0..2π * twists], "s" в [-1..1].
         repeat(config.count) {
@@ -138,8 +140,7 @@ class MobiusStripGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
+
 
         // Добавляем звезду
         return particles
@@ -168,6 +169,8 @@ class RidgesCylinderGenerator : FigureGenerator {
         val freq      = config.params["freq"]       ?: (PI.toFloat() / halfH)
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // z ~ [-halfH.. +halfH]
@@ -188,9 +191,6 @@ class RidgesCylinderGenerator : FigureGenerator {
             val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
-
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
 
         return particles
     }
@@ -216,6 +216,8 @@ class SineWaveTorusGenerator : FigureGenerator {
         val freq     = config.params["freq"]        ?: 3f // например, 3 колебания на 2π
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // phi ~ [0..2π] — угол по большому кругу
@@ -237,9 +239,6 @@ class SineWaveTorusGenerator : FigureGenerator {
             val m = Random.nextDouble(config.massFrom.toDouble(), config.massUntil.toDouble()).toFloat()
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
-
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
 
         return particles
     }
@@ -266,6 +265,8 @@ class RandomNoiseSphereGenerator : FigureGenerator {
         val freq    = config.params["noiseFreq"] ?: 12f  // кол-во колебаний
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // Берём угол phi ~ [0..2π], cosTheta ~ [-1..1]
@@ -288,10 +289,6 @@ class RandomNoiseSphereGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        // Орбитальная скорость
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -309,6 +306,9 @@ class PyramidGenerator : FigureGenerator {
         val height = config.params["height"] ?: config.maxRadius.toFloat()
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
+
         repeat(config.count) {
             // zFrac [0..1], 0 = вершина, 1 = основание
             val zFrac = Random.nextFloat()
@@ -327,10 +327,6 @@ class PyramidGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
-        // Добавляем "звезду"
         return particles
     }
 }
@@ -356,6 +352,7 @@ class RandomClustersGenerator : FigureGenerator {
 
         // Для начала сгенерируем "центры" кластеров
         val clusterCenters = mutableListOf<Vector3f>()
+
         repeat(clusterCount) {
             // Случайное направление + расстояние
             val dist = Random.nextFloat() * spread
@@ -371,6 +368,9 @@ class RandomClustersGenerator : FigureGenerator {
         }
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
+
         // Разделим общее число частиц по кластерам (пример: поровну)
         val perCluster = config.count / clusterCount
 
@@ -421,9 +421,6 @@ class RandomClustersGenerator : FigureGenerator {
             }
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -440,6 +437,8 @@ class ConeGenerator : FigureGenerator {
         val height = config.maxRadius
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // z идёт от 0 (вершина) до -height (основание)
@@ -462,9 +461,6 @@ class ConeGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz.toFloat(), 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -481,6 +477,8 @@ class TorusGenerator : FigureGenerator {
         val rMajor = config.maxRadius
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // Угол вокруг большой окружности
@@ -501,9 +499,6 @@ class TorusGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -518,6 +513,8 @@ class HemisphereGenerator : FigureGenerator {
         val rMax = config.maxRadius
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // Радиус с учётом равномерности по объёму полушара
@@ -540,9 +537,6 @@ class HemisphereGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -558,6 +552,8 @@ class DoubleConeGenerator : FigureGenerator {
         val height = config.maxRadius
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // Случайно выбираем, в какой конус попасть (верхний / нижний)
@@ -582,9 +578,6 @@ class DoubleConeGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz.toFloat(), 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -600,6 +593,8 @@ class CubeGenerator : FigureGenerator {
         val halfSide = side / 2f
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // Случайная точка внутри куба: [ -halfSide, +halfSide ]
@@ -618,9 +613,6 @@ class CubeGenerator : FigureGenerator {
             particles.add(Particle(px.toFloat(), py.toFloat(), pz.toFloat(), 0f, 0f, 0f, m, rP))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -636,6 +628,8 @@ class CylinderGenerator : FigureGenerator {
         val halfHeight = config.maxRadius
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         repeat(config.count) {
             // 1) Равномерно внутри круга:
@@ -657,9 +651,6 @@ class CylinderGenerator : FigureGenerator {
             particles.add(Particle(x, y, pz.toFloat(), 0f, 0f, 0f, m, rP))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -672,13 +663,16 @@ class RandomOrbitsGenerator : FigureGenerator {
         val cz = config.centerZ
 
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
+
         var d = 100f
         // Генерация случайных координат в объёме между rIn и rOut
         repeat(config.count) {
             // Масса частицы
 
             val m = 1f
-            var particle = Particle(
+            val particle = Particle(
                 x = cx + d,
                 y = cy,
                 z = cz,
@@ -693,9 +687,6 @@ class RandomOrbitsGenerator : FigureGenerator {
             particles.add(particle)
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -707,6 +698,8 @@ class DiskGenerator : FigureGenerator {
         val cy = config.centerY
         val cz = config.centerZ
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         // 1) Генерация координат
         repeat(config.count) {
@@ -722,9 +715,6 @@ class DiskGenerator : FigureGenerator {
             particles.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
 }
@@ -736,6 +726,8 @@ class SphereGenerator : FigureGenerator {
         val cy = config.centerY
         val cz = config.centerZ
         val particles = mutableListOf<Particle>()
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
 
         // 1) Генерация координат (равномерная в объёме сферы)
         repeat(config.count) {
@@ -760,48 +752,6 @@ class SphereGenerator : FigureGenerator {
             particles.add(Particle(px, py, pz, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
         return particles
     }
-}
-
-
-fun generateParticles(config: SimulationConfig): List<Particle> {
-    val particleCount = 1000000
-    val massRange = 0.08f to 100.0f
-    val particles = mutableListOf<Particle>()
-
-    val cx = config.centerX
-    val cy = config.centerY
-    val cz = config.centerZ
-
-    for (i in 0 until particleCount) {
-        // Generate mass
-        val mass = Random.nextFloat() * (massRange.second - massRange.first) + massRange.first
-
-        // Generate spatial coordinates (uniform distribution in spherical volume)
-        val radius = Random.nextFloat() * 50000  // Max radius of 50 kpc
-        val theta = Random.nextFloat() * Math.PI.toFloat()  // Polar angle
-        val phi = Random.nextFloat() * (2 * Math.PI.toFloat())  // Azimuthal angle
-
-        val x = cx + (radius * Math.sin(theta.toDouble()) * Math.cos(phi.toDouble())).toFloat()
-        val y = cy + (radius * Math.sin(theta.toDouble()) * Math.sin(phi.toDouble())).toFloat()
-        val z = cz + (radius * Math.cos(theta.toDouble())).toFloat()
-
-        // Generate velocities (circular orbits with small random variation)
-        val speed = 220f + Random.nextFloat() * 20f  // Around 220 km/s
-        val angle = Random.nextFloat() * (2 * Math.PI.toFloat())
-
-        val vx = (speed * Math.cos(angle.toDouble())).toFloat()
-        val vy = (speed * Math.sin(angle.toDouble())).toFloat()
-        val vz = Random.nextFloat() * 10f - 5f  // Small vertical component
-
-        // Create Particle object
-        particles.add(Particle(x, y, z, vx, vy, vz, mass, sqrt(mass)))
-    }
-
-    return particles
 }
