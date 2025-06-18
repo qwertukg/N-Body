@@ -38,6 +38,8 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
     private val massGrid = FloatArray(gxGyGz)
     private val potentialGrid = FloatArray(gxGyGz)
 
+    private val fft3D = FloatFFT_3D(gX.toLong(), gY.toLong(), gZ.toLong())
+
     fun initSimulation(particles: List<Particle>) {
         val totalCount = particles.size
         particleX = FloatArray(totalCount) { particles[it].x }
@@ -106,7 +108,6 @@ class ParticleMeshSimulation(val config: SimulationConfig) {
         }
 
         // 3) Прямое FFT
-        val fft3D = FloatFFT_3D(gX.toLong(), gY.toLong(), gZ.toLong())
         fft3D.complexForward(complexData)
 
         // 4) Решаем уравнение в k-пространстве: Phi_hat(k) = - (4πG / k^2) * rho_hat(k)

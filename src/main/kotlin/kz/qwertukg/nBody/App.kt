@@ -49,7 +49,6 @@ suspend fun main() = runBlocking {
     var camAngleX = 0.3f
     var camAngleY = -0.99f
     val camZStep = 0.01f
-    val points = updatePoints(simulation, scale)
 
     if (!glfwInit()) {
         throw IllegalStateException("Не удалось инициализировать GLFW")
@@ -59,7 +58,7 @@ suspend fun main() = runBlocking {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
 
-    val window = glfwCreateWindow(w, h, "3D Точки с геометрическим шейдером", if (config.isFullScreen) glfwGetPrimaryMonitor() else 0, NULL)
+    val window = glfwCreateWindow(w, h, "Gravity simulator based on Particle Mesh Algorithm", if (config.isFullScreen) glfwGetPrimaryMonitor() else 0, NULL)
     if (window == NULL) {
         throw RuntimeException("Не удалось создать окно")
     }
@@ -70,16 +69,53 @@ suspend fun main() = runBlocking {
     glfwSwapInterval(0)
     createCapabilities()
 
+    glEnable(GL_PROGRAM_POINT_SIZE)
+
+    // Проверяем, что есть поддержка ARB_buffer_storage
+    require(getCapabilities().GL_ARB_buffer_storage) {
+        "Видео-драйвер не поддерживает GL_ARB_buffer_storage; " +
+                "persist-mapped VBO здесь работать не будет."
+    }
+
     val vao = glGenVertexArrays()
     val vbo = glGenBuffers()
 
+    /* >>> VBO-BEGIN (обновлённый) <<< */
     glBindVertexArray(vao)
     glBindBuffer(GL_ARRAY_BUFFER, vbo)
 
-    glBufferData(GL_ARRAY_BUFFER, points.size * java.lang.Float.BYTES.toLong(), GL_DYNAMIC_DRAW)
+    /* 1) Размер: текущее количество частиц + 20 % */
+    val safety      = (simulation.particleX.size * 1.2f).toInt()
+    val maxParticles = maxOf(safety, simulation.particleX.size + 1_000)
+    val bytes        = maxParticles.toLong() * 3L * java.lang.Float.BYTES
+
+    /* 2) Flags для СОЗДАНИЯ буфера */
+    val storageFlags = GL_DYNAMIC_STORAGE_BIT or
+            GL_MAP_WRITE_BIT       or
+            GL_MAP_PERSISTENT_BIT  or
+            GL_MAP_COHERENT_BIT
+    glBufferStorage(GL_ARRAY_BUFFER, bytes, storageFlags)
+    check(glGetError() == GL_NO_ERROR) { "glBufferStorage error" }
+
+    /* 3) Flags только для map-операции */
+    val mapFlags = GL_MAP_WRITE_BIT or
+            GL_MAP_PERSISTENT_BIT or
+            GL_MAP_COHERENT_BIT
+
+    val vboByte = glMapBufferRange(GL_ARRAY_BUFFER, 0L, bytes, mapFlags, null)
+        ?: error("glMapBufferRange вернул null (mapFlags=$mapFlags)")
+    check(glGetError() == GL_NO_ERROR) { "glMapBufferRange error" }
+
+    /* 4) View-буфер */
+    val vboFloat = vboByte
+        .order(java.nio.ByteOrder.nativeOrder())
+        .asFloatBuffer()
+
+    /* 5) Описываем атрибут */
     glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * java.lang.Float.BYTES, 0)
     glEnableVertexAttribArray(0)
     glBindVertexArray(0)
+    /* <<< VBO-END (обновлённый) <<< */
 
     glEnable(GL_DEPTH_TEST)
 
@@ -177,53 +213,45 @@ suspend fun main() = runBlocking {
     while (!glfwWindowShouldClose(window)) {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
+        /* 1️⃣ Физика */
         simulation.stepWithFFT()
-        val updatedPoints = updatePoints(simulation, scale)
 
-        // центрируемся на первой частице (индекс 0)
+        /* 2️⃣ Пишем точки прямо в persist-mapped VBO */
+        val verts = simulation.writePositionsToVbo(vboFloat, scale)   // ← новая функция
+
+        /* 3️⃣ Обновляем камеру.
+               Координаты первой частицы берём напрямую из симулятора
+               и масштабируем так же, как в writePositionsToVbo (÷ scale). */
         val focusPos = Vector3f(
-            updatedPoints[0],
-            updatedPoints[1],
-            updatedPoints[2]
+            simulation.particleX[0] / scale,
+            simulation.particleY[0] / scale,
+            simulation.particleZ[0] / scale
         )
 
-        // Вычисляем положение камеры на орбите
         val cameraPos = Vector3f(
             camZ * cos(camAngleY) * sin(camAngleX),
             camZ * sin(camAngleY),
             camZ * cos(camAngleY) * cos(camAngleX)
         ).add(focusPos)
 
-        // динамический «up»: как только камера переходит через полюс, вектор up инвертируется,
-        // и lookAt не попадает в сингулярность (камера продолжает вращение без рывка)
         val upVec = if (cos(camAngleY) >= 0f) Vector3f(0f, 1f, 0f) else Vector3f(0f, -1f, 0f)
 
-        val viewMatrix = Matrix4f()
-            .lookAt(cameraPos, focusPos, upVec)
+        val viewMatrix = Matrix4f().lookAt(cameraPos, focusPos, upVec)
         viewMatrix.get(viewArray)
 
-        glBindBuffer(GL_ARRAY_BUFFER, vbo)
-        val mappedBuffer = glMapBufferRange(
-            GL_ARRAY_BUFFER,
-            0,
-            updatedPoints.size * java.lang.Float.BYTES.toLong(),
-            GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT
-        )?.asFloatBuffer()
-        mappedBuffer?.put(updatedPoints)?.flip()
-        glUnmapBuffer(GL_ARRAY_BUFFER)
-
+        /* 4️⃣ Рендер */
         glUseProgram(shaderProgram)
 
         glUniformMatrix4fv(projectionLocation, false, projectionArray)
-        glUniformMatrix4fv(viewLocation, false, viewArray)
         glUniform1f(pointSizeLocation, pointSize)
-        glUniform1f(zNearLocation, zNear)
-        glUniform1f(zFarLocation, zFar)
-        glUniform1f(wLocation, w.toFloat())
-        glUniform1f(hLocation, h.toFloat())
+        glUniform1f(zNearLocation,  zNear)
+        glUniform1f(zFarLocation,   zFar)
+        glUniform1f(wLocation,      w.toFloat())
+        glUniform1f(hLocation,      h.toFloat())
 
+        glUniformMatrix4fv(viewLocation, false, viewArray)
         glBindVertexArray(vao)
-        glDrawArrays(GL_POINTS, 0, points.size / 3)
+        glDrawArrays(GL_POINTS, 0, verts)        // ← verts = число частиц
 
         glfwSwapBuffers(window)
         glfwPollEvents()
