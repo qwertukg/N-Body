@@ -35,7 +35,7 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
     generator.registerFigure(GLFW_KEY_Y.toString(), OrbitalDiskGenerator())
 
-    generator.generate(GLFW_KEY_Y.toString()).apply { simulation.initSimulation(this) }
+    generator.generate(generator.figureGenerators.keys.random()).apply { simulation.initSimulation(this) }
     simulation.stepWithFFT()
     simulation.setCircularOrbitsAroundCenterOfMassDirect()
 
