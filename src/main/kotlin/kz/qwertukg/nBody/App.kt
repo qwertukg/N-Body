@@ -35,10 +35,6 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
     generator.registerFigure(GLFW_KEY_Y.toString(), OrbitalDiskGenerator())
 
-    generator.generate(generator.figureGenerators.keys.random()).apply { simulation.initSimulation(this) }
-    simulation.stepWithFFT()
-    simulation.setCircularOrbitsAroundCenterOfMassDirect()
-
     val w = simulation.config.screenW
     val h = simulation.config.screenH
     val scale = 2000000f
@@ -49,6 +45,12 @@ suspend fun main() = runBlocking {
     var camAngleX = 0.3f
     var camAngleY = -0.99f
     val camZStep = 0.01f
+    var isWithSpin = true
+
+    // initial figure
+    generator.generate(generator.figureGenerators.keys.random()).apply { simulation.initSimulation(this) }
+    simulation.stepWithFFT()
+    if (isWithSpin) simulation.setCircularOrbitsAroundCenterOfMassDirect()
 
     if (!glfwInit()) {
         throw IllegalStateException("Не удалось инициализировать GLFW")
@@ -194,15 +196,21 @@ suspend fun main() = runBlocking {
                 GLFW_KEY_DOWN -> config.dt -= dtStep
                 GLFW_KEY_RIGHT -> simulation.nextFocus()
                 GLFW_KEY_LEFT -> simulation.prevFocus()
+                GLFW_KEY_Z -> isWithBlackHole = !isWithBlackHole
+                GLFW_KEY_X -> isWithSpin = !isWithSpin
                 GLFW_KEY_SPACE -> {
+                    focusIndex = 0
+                    config.dt = 1f
                     config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
                     generator.generate(generator.current).apply { simulation.initSimulation(this) }
-                    simulation.setCircularOrbitsAroundCenterOfMassDirect()
+                    if (isWithSpin) simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
                 else -> {
+                    config.dt = 1f
+                    focusIndex = 0
                     generator.generate(key.toString()).apply { simulation.initSimulation(this) }
-                    simulation.setCircularOrbitsAroundCenterOfMassDirect()
+                    if (isWithSpin) simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
             }
         }

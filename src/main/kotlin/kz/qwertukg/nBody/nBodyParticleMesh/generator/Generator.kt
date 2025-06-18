@@ -3,6 +3,8 @@ package kz.qwertukg.nBody.nBodyParticleMesh.generator
 import kz.qwertukg.nBody.nBodyParticleMesh.Particle
 import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
 
+var isWithBlackHole = true
+
 // --- Основной класс Generator, использующий «стратегию» ---
 class Generator(val config: SimulationConfig) {
     var current: String = ""
@@ -17,6 +19,6 @@ class Generator(val config: SimulationConfig) {
             ?: figureGenerators[figureGenerators.keys.first()] ?:
                 throw NotImplementedError("No figures")
         current = figureName
-        return gen.generate(config)
+        return if (!isWithBlackHole) gen.generate(config).drop(1) else gen.generate(config)
     }
 }

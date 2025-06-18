@@ -39,6 +39,9 @@ Solving the Poisson equation using the Fast Fourier Transform (FFT).
 
 #### Additional control
 
+- `Z` - with/without center BlackHole 
+- `X` - with/without orbital velocity of particles 
+- `Space` - set random orbit size for a current figure
 - `Space` - set random orbit size for a current figure
 - `Up` - increase time speed
 - `Down` - decrease time speed
