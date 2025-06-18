@@ -25,7 +25,7 @@ class OrbitalDiskGenerator : FigureGenerator {
         val h = 2_000.0
         val maxR = 120_000.0
 
-        repeat(320_000) {
+        repeat(700_000) {
             val r = Random.nextDouble(0.0, maxR).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
             val x = cx + (r * cos(theta)).toFloat()
@@ -36,7 +36,7 @@ class OrbitalDiskGenerator : FigureGenerator {
             redDwarfStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        repeat(60_000) {
+        repeat(125_000) {
             val r = Random.nextDouble(0.0, maxR).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
             val x = cx + (r * cos(theta)).toFloat()
@@ -47,7 +47,7 @@ class OrbitalDiskGenerator : FigureGenerator {
             mediumMassStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        repeat(20_000) {
+        repeat(50_000) {
             val r = Random.nextDouble(0.0, maxR).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
             val x = cx + (r * cos(theta)).toFloat()
@@ -58,7 +58,7 @@ class OrbitalDiskGenerator : FigureGenerator {
             massiveStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        repeat(2_000) {
+        repeat(5_000) {
             val r = Random.nextDouble(0.0, maxR).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
             val x = cx + (r * cos(theta)).toFloat()
@@ -69,7 +69,7 @@ class OrbitalDiskGenerator : FigureGenerator {
             superMassiveStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        repeat(50_000) {
+        repeat(120_000) {
             val r = Random.nextDouble(0.0, maxR).toFloat()
             val theta = Random.nextDouble(0.0, 2 * PI)
             val x = cx + (r * cos(theta)).toFloat()
@@ -80,12 +80,15 @@ class OrbitalDiskGenerator : FigureGenerator {
             stellarRemnants.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
         }
 
-        return listOf(blackHole) +
+        val result = listOf(blackHole) +
                 redDwarfStars +
                 mediumMassStars +
                 massiveStars +
                 superMassiveStars +
                 stellarRemnants
+
+        println(result.count())
+        return result
     }
 }
 
@@ -140,6 +143,7 @@ class MobiusStripGenerator : FigureGenerator {
         particles.add(star)
 
         // Добавляем звезду
+        println(particles.count())
         return particles
     }
 }

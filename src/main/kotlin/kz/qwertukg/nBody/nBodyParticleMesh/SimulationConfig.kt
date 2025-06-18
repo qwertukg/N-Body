@@ -10,8 +10,8 @@ import kotlin.math.PI
 data class SimulationConfig(
     val count: Int,
     val maxParticlesCount: Int = 2_000_000,
-    val screenW: Int = 3440,
-    val screenH: Int = 1440,
+    val screenW: Int = 3024,
+    val screenH: Int = 1964,
     val gridSize: Int = 64,
     val worldSize: Float = 1000_000f,
     var g: Float = 6.67430e-11f,

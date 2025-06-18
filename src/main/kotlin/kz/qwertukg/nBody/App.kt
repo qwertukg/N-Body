@@ -13,7 +13,15 @@ import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import org.lwjgl.stb.STBTTAlignedQuad
+import org.lwjgl.stb.STBTTBakedChar
+import org.lwjgl.stb.STBTruetype.stbtt_BakeFontBitmap
+import org.lwjgl.stb.STBTruetype.stbtt_GetBakedQuad
+import org.lwjgl.system.MemoryStack
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.nio.file.Paths
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -23,7 +31,6 @@ suspend fun main() = runBlocking {
     val config = fromJson("src/main/resources/config.json")
     val simulation = ParticleMeshSimulation(config)
     val generator = Generator(config)
-    generator.registerFigure(GLFW_KEY_F1.toString(), OrbitalDiskGenerator())
     generator.registerFigure(GLFW_KEY_1.toString(), DiskGenerator())
     generator.registerFigure(GLFW_KEY_2.toString(), MobiusStripGenerator())
     generator.registerFigure(GLFW_KEY_3.toString(), SphereGenerator())
@@ -39,13 +46,9 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_E.toString(), RandomClustersGenerator())
     generator.registerFigure(GLFW_KEY_R.toString(), RandomNoiseSphereGenerator())
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
+    generator.registerFigure(GLFW_KEY_Y.toString(), OrbitalDiskGenerator())
 
-
-
-//    val galaxy = generateParticles(config)
-//    simulation.initSimulation(galaxy)
-
-    generator.generate(GLFW_KEY_F1.toString()).apply { simulation.initSimulation(this) }
+    generator.generate(GLFW_KEY_Y.toString()).apply { simulation.initSimulation(this) }
     simulation.stepWithFFT()
     simulation.setCircularOrbitsAroundCenterOfMassDirect()
 
@@ -56,8 +59,8 @@ suspend fun main() = runBlocking {
     val zNear = 0.001f
     val zFar = 10f
     var camZ = 0.3f
-    var camAngleX = 0.0f
-    var camAngleY = 0.0f
+    var camAngleX = 0.3f
+    var camAngleY = -0.99f
     val camZStep = 0.01f
     val points = updatePoints(simulation, scale)
 
@@ -163,6 +166,7 @@ suspend fun main() = runBlocking {
         if (action == GLFW_PRESS) {
             val dtStep = 0.1f
             when (key) {
+                GLFW_KEY_ESCAPE -> System.exit(0)
                 GLFW_KEY_UP ->  config.dt += dtStep
                 GLFW_KEY_DOWN -> config.dt -= dtStep
                 GLFW_KEY_SPACE -> {
@@ -170,14 +174,14 @@ suspend fun main() = runBlocking {
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
                     generator.generate(generator.current).apply { simulation.initSimulation(this) }
                     runBlocking {
-                        //simulation.stepWithFFT()
+                        simulation.stepWithFFT()
                     }
                     simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
                 else -> {
                     generator.generate(key.toString()).apply { simulation.initSimulation(this) }
                     runBlocking {
-                        //simulation.stepWithFFT()
+                        simulation.stepWithFFT()
                     }
                     simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
@@ -205,8 +209,6 @@ suspend fun main() = runBlocking {
         val viewMatrix = Matrix4f()
             .lookAt(cameraPos, Vector3f(0f, 0f, 0f), Vector3f(0f, 1f, 0f))
         viewMatrix.get(viewArray)
-
-
 
         glBindBuffer(GL_ARRAY_BUFFER, vbo)
         val mappedBuffer = glMapBufferRange(
