@@ -22,7 +22,7 @@ val lwjglNatives = when {
     else -> "natives-linux"
 }
 
-val javafxVersion = "20"
+val javafxVersion = "21.0.2"
 val javafxPlatform = when {
     osName.contains("mac") && osArch.contains("aarch64") -> "mac-aarch64"
     osName.contains("mac") -> "mac"

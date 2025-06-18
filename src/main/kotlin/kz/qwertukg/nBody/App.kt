@@ -160,16 +160,10 @@ suspend fun main() = runBlocking {
                     config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
                     generator.generate(generator.current).apply { simulation.initSimulation(this) }
-                    runBlocking {
-                        simulation.stepWithFFT()
-                    }
                     simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
                 else -> {
                     generator.generate(key.toString()).apply { simulation.initSimulation(this) }
-                    runBlocking {
-                        simulation.stepWithFFT()
-                    }
                     simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
             }

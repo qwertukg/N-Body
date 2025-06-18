@@ -1,7 +1,7 @@
 {
   "count": 1000000,
-  "screenW": 3024,
-  "screenH": 1964,
+  "screenW": 3440,
+  "screenH": 1440,
   "gridSize": 64,
   "worldSize": 1000000,
   "g": 6.67430e-11,
