@@ -51,8 +51,8 @@ class OrbitalDiskGenerator : FigureGenerator {
         // ------------------------------------------------------------
         // 3. Параметры геометрии диска
         // ------------------------------------------------------------
-        val halfThickness = 1_000.0           // h/2
-        val maxR = 120_000.0
+        val halfThickness = config.minRadius           // h/2
+        val maxR = config.maxRadius
 
         // ------------------------------------------------------------
         // 4. Генерация звёзд разных типов
@@ -85,7 +85,11 @@ class OrbitalDiskGenerator : FigureGenerator {
         val theta = Random.nextDouble(0.0, 2 * PI)
         val x = cx + (r * cos(theta)).toFloat()
         val y = cy + (r * sin(theta)).toFloat()
-        val z = cz + Random.nextDouble(-halfThickness, halfThickness).toFloat()
+
+        val factor = if (maxR > 0) (1 - sqrt(r / maxR)).coerceIn(0.0, 1.0) else 0.0001
+        val z = cz + Random.nextDouble(-halfThickness * factor, halfThickness * factor).toFloat()
+
+
         val m = Random.nextDouble(massRange.start, massRange.endInclusive).toFloat()
         Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m))
     }
@@ -661,28 +665,27 @@ class RandomOrbitsGenerator : FigureGenerator {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
-
         val particles = mutableListOf<Particle>()
+
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
 
-        var d = 100f
-        // Генерация случайных координат в объёме между rIn и rOut
         repeat(config.count) {
-            // Масса частицы
+            val x = Random.nextFloat() * config.worldWidth
+            val y = Random.nextFloat() * config.worldHeight
+            val z = Random.nextFloat() * config.worldDepth
 
             val m = 1f
             val particle = Particle(
-                x = cx + d,
-                y = cy,
-                z = cz,
+                x = x,
+                y = y,
+                z = z,
                 vx = 0f,
                 vy = 0f,
                 vz = 0f,
                 m = m,
                 r = sqrt(m)
             )
-            d +=  10000f
 
             particles.add(particle)
         }

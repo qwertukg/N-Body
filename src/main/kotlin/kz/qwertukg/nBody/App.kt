@@ -11,6 +11,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 import org.joml.Vector3f
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -46,6 +47,7 @@ suspend fun main() = runBlocking {
     var camAngleY = -0.99f
     val camZStep = 0.01f
     var isWithSpin = true
+    val dtStep = 0.1f
 
     // initial figure
     generator.generate(generator.figureGenerators.keys.random()).apply { simulation.initSimulation(this) }
@@ -187,28 +189,25 @@ suspend fun main() = runBlocking {
         }
     }
 
+    // control
     glfwSetKeyCallback(window) { _, key, _, action, _ ->
         if (action == GLFW_PRESS) {
-            val dtStep = 0.1f
+
             when (key) {
                 GLFW_KEY_ESCAPE -> System.exit(0)
-                GLFW_KEY_UP ->  config.dt += dtStep
-                GLFW_KEY_DOWN -> config.dt -= dtStep
                 GLFW_KEY_RIGHT -> simulation.nextFocus()
                 GLFW_KEY_LEFT -> simulation.prevFocus()
-                GLFW_KEY_Z -> isWithBlackHole = !isWithBlackHole
-                GLFW_KEY_X -> isWithSpin = !isWithSpin
+                GLFW_KEY_X -> isWithBlackHole = !isWithBlackHole
+                GLFW_KEY_Z -> isWithSpin = !isWithSpin
                 GLFW_KEY_SPACE -> {
-                    focusIndex = 0
-                    config.dt = 1f
-                    config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
-                    config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
+//                    focusIndex = 0
+//                    config.dt = 1f
+                    config.minRadius = max(Random.nextFloat() * (config.worldSize * 0.4f), 0.01f).toDouble()
+                    config.maxRadius = Random.nextFloat() * (config.worldSize * 0.4) + config.minRadius
                     generator.generate(generator.current).apply { simulation.initSimulation(this) }
                     if (isWithSpin) simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
-                else -> {
-                    config.dt = 1f
-                    focusIndex = 0
+                else -> if (key.toString() in generator.figureGenerators.keys) {
                     generator.generate(key.toString()).apply { simulation.initSimulation(this) }
                     if (isWithSpin) simulation.setCircularOrbitsAroundCenterOfMassDirect()
                 }
@@ -221,6 +220,16 @@ suspend fun main() = runBlocking {
     }
 
     while (!glfwWindowShouldClose(window)) {
+
+        // speed control
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+            config.dt += dtStep
+        }
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+            config.dt -= dtStep
+        }
+
+
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
         /* 1️⃣ Физика */
