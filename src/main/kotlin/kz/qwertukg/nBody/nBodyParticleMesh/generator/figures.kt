@@ -8,86 +8,86 @@ import kotlin.random.Random
 
 val starMass = 1_000_000_000f
 
-// --- Генератор «диска» (disk) ---
+/**
+ * Генератор «орбитального диска».
+ *
+ * Количество частиц (кроме центральной чёрной дыры) берётся из [SimulationConfig.count],
+ * а пропорции звёзд сохраняются:
+ *  * красные карлики — 70 %
+ *  * звёзды средней массы — 12,5 %
+ *  * массивные звёзды — 5 %
+ *  * сверхмассивные — 0,5 %
+ *  * звёздные остатки — то, что осталось от бюджета
+ */
 class OrbitalDiskGenerator : FigureGenerator {
+
     override fun generate(config: SimulationConfig): List<Particle> {
         val cx = config.centerX
         val cy = config.centerY
         val cz = config.centerZ
 
-        val blackHole = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        // ------------------------------------------------------------
+        // 1. Центральная чёрная дыра
+        // ------------------------------------------------------------
+        val blackHole = Particle(
+            cx, cy, cz,
+            vx = 0f, vy = 0f, vz = 0f,
+            m = starMass,
+            r = sqrt(starMass)
+        )
 
-        val redDwarfStars = mutableListOf<Particle>()
-        val mediumMassStars = mutableListOf<Particle>()
-        val massiveStars = mutableListOf<Particle>()
-        val superMassiveStars = mutableListOf<Particle>()
-        val stellarRemnants = mutableListOf<Particle>()
-        val h = 2_000.0
+        // ------------------------------------------------------------
+        // 2. Расчёт бюджета и квот
+        // ------------------------------------------------------------
+        val budget = (config.count - 1).coerceAtLeast(0)      // -1, потому что чёрная дыра уже учтена
+
+        val redCount          = (budget * 0.70 ).roundToInt()
+        val mediumCount       = (budget * 0.125).roundToInt()
+        val massiveCount      = (budget * 0.05 ).roundToInt()
+        val superMassiveCount = (budget * 0.005).roundToInt()
+        val remnantsCount     = budget -
+                redCount - mediumCount - massiveCount - superMassiveCount
+
+        // ------------------------------------------------------------
+        // 3. Параметры геометрии диска
+        // ------------------------------------------------------------
+        val halfThickness = 1_000.0           // h/2
         val maxR = 120_000.0
 
-        repeat(700_000) {
-            val r = Random.nextDouble(0.0, maxR).toFloat()
-            val theta = Random.nextDouble(0.0, 2 * PI)
-            val x = cx + (r * cos(theta)).toFloat()
-            val y = cy + (r * sin(theta)).toFloat()
-            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
-            val m = Random.nextDouble(0.08, 0.6).toFloat()
+        // ------------------------------------------------------------
+        // 4. Генерация звёзд разных типов
+        // ------------------------------------------------------------
+        val redDwarfs      = generateStars(redCount,          0.08..0.60, halfThickness, maxR, cx, cy, cz)
+        val mediumStars    = generateStars(mediumCount,       0.60..1.50, halfThickness, maxR, cx, cy, cz)
+        val massiveStars   = generateStars(massiveCount,      1.50..8.00, halfThickness, maxR, cx, cy, cz)
+        val superMassive   = generateStars(superMassiveCount, 8.00..150.0, halfThickness, maxR, cx, cy, cz)
+        val remnants       = generateStars(remnantsCount,     0.90..1.10, halfThickness, maxR, cx, cy, cz)
 
-            redDwarfStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
+        // ------------------------------------------------------------
+        // 5. Итоговый список
+        // ------------------------------------------------------------
+        return buildList {
+            add(blackHole)
+            addAll(redDwarfs)
+            addAll(mediumStars)
+            addAll(massiveStars)
+            addAll(superMassive)
+            addAll(remnants)
         }
+    }
 
-        repeat(125_000) {
-            val r = Random.nextDouble(0.0, maxR).toFloat()
-            val theta = Random.nextDouble(0.0, 2 * PI)
-            val x = cx + (r * cos(theta)).toFloat()
-            val y = cy + (r * sin(theta)).toFloat()
-            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
-            val m = Random.nextDouble(0.6, 1.5).toFloat()
-
-            mediumMassStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
-        }
-
-        repeat(50_000) {
-            val r = Random.nextDouble(0.0, maxR).toFloat()
-            val theta = Random.nextDouble(0.0, 2 * PI)
-            val x = cx + (r * cos(theta)).toFloat()
-            val y = cy + (r * sin(theta)).toFloat()
-            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
-            val m = Random.nextDouble(1.5, 8.0).toFloat()
-
-            massiveStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
-        }
-
-        repeat(5_000) {
-            val r = Random.nextDouble(0.0, maxR).toFloat()
-            val theta = Random.nextDouble(0.0, 2 * PI)
-            val x = cx + (r * cos(theta)).toFloat()
-            val y = cy + (r * sin(theta)).toFloat()
-            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
-            val m = Random.nextDouble(8.0, 150.0).toFloat()
-
-            superMassiveStars.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
-        }
-
-        repeat(120_000) {
-            val r = Random.nextDouble(0.0, maxR).toFloat()
-            val theta = Random.nextDouble(0.0, 2 * PI)
-            val x = cx + (r * cos(theta)).toFloat()
-            val y = cy + (r * sin(theta)).toFloat()
-            val z = cz + Random.nextDouble(-h/2, h/2).toFloat()
-            val m = Random.nextDouble(0.9, 1.1).toFloat()
-
-            stellarRemnants.add(Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m)))
-        }
-
-        val result = listOf(blackHole) +
-                redDwarfStars +
-                mediumMassStars +
-                massiveStars +
-                superMassiveStars +
-                stellarRemnants
-
-        return result
+    /**
+     * Генерирует [count] частиц со случайными координатами в диске
+     * и случайной массой в диапазоне [massRange].
+     */
+    private fun generateStars(count: Int, massRange: ClosedFloatingPointRange<Double>, halfThickness: Double, maxR: Double, cx: Float, cy: Float, cz: Float) = List(count) {
+        val r = Random.nextDouble(0.0, maxR).toFloat()
+        val theta = Random.nextDouble(0.0, 2 * PI)
+        val x = cx + (r * cos(theta)).toFloat()
+        val y = cy + (r * sin(theta)).toFloat()
+        val z = cz + Random.nextDouble(-halfThickness, halfThickness).toFloat()
+        val m = Random.nextDouble(massRange.start, massRange.endInclusive).toFloat()
+        Particle(x, y, z, 0f, 0f, 0f, m, sqrt(m))
     }
 }
 

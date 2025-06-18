@@ -192,6 +192,8 @@ suspend fun main() = runBlocking {
                 GLFW_KEY_ESCAPE -> System.exit(0)
                 GLFW_KEY_UP ->  config.dt += dtStep
                 GLFW_KEY_DOWN -> config.dt -= dtStep
+                GLFW_KEY_RIGHT -> simulation.nextFocus()
+                GLFW_KEY_LEFT -> simulation.prevFocus()
                 GLFW_KEY_SPACE -> {
                     config.minRadius = Random.nextFloat() * (config.worldSize * 0.5)
                     config.maxRadius = Random.nextFloat() * (config.worldSize * 0.5) + config.minRadius
@@ -223,9 +225,9 @@ suspend fun main() = runBlocking {
                Координаты первой частицы берём напрямую из симулятора
                и масштабируем так же, как в writePositionsToVbo (÷ scale). */
         val focusPos = Vector3f(
-            simulation.particleX[0] / scale,
-            simulation.particleY[0] / scale,
-            simulation.particleZ[0] / scale
+            simulation.particleX[focusIndex] / scale,
+            simulation.particleY[focusIndex] / scale,
+            simulation.particleZ[focusIndex] / scale
         )
 
         val cameraPos = Vector3f(

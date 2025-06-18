@@ -80,3 +80,17 @@ suspend fun ParticleMeshSimulation.writePositionsToVbo(buf: FloatBuffer, scale: 
 
     n
 }
+
+
+
+var focusIndex = 0
+
+fun ParticleMeshSimulation.nextFocus() {
+    focusIndex++
+    focusIndex = if (focusIndex < 0) config.count else focusIndex
+}
+
+fun ParticleMeshSimulation.prevFocus() {
+    focusIndex--
+    focusIndex = if (focusIndex < 0) config.count else focusIndex
+}

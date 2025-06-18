@@ -39,8 +39,10 @@ Solving the Poisson equation using the Fast Fourier Transform (FFT).
 
 #### Additional control
 
-- `Space` - set random orbit size for current figure
+- `Space` - set random orbit size for a current figure
 - `Up` - increase time speed
 - `Down` - decrease time speed
+- `Right` - focus on next particle
+- `Left` - focus on previous particle
 - `Esc` - exit
 
