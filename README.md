@@ -39,13 +39,13 @@ Solving the Poisson equation using the Fast Fourier Transform (FFT).
 
 #### Additional control
 
-- `Z` - with/without center BlackHole 
+- `Z` - with/without center BlackHole (with BlackHole it will be in cam focus, without cam looks at the sim center)
 - `X` - with/without orbital velocity of particles 
 - `Space` - set random orbit size for a current figure
 - `Space` - set random orbit size for a current figure
 - `Up` - increase time speed
 - `Down` - decrease time speed
-- `Right` - focus on next particle
+- `Right` - focus on next particle (with cam focus only)
 - `Left` - focus on previous particle
 - `Esc` - exit
 

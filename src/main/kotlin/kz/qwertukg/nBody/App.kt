@@ -232,10 +232,14 @@ suspend fun main() = runBlocking {
         /* 3️⃣ Обновляем камеру.
                Координаты первой частицы берём напрямую из симулятора
                и масштабируем так же, как в writePositionsToVbo (÷ scale). */
-        val focusPos = Vector3f(
+        val focusPos = if (isWithBlackHole) Vector3f(
             simulation.particleX[focusIndex] / scale,
             simulation.particleY[focusIndex] / scale,
             simulation.particleZ[focusIndex] / scale
+        )else Vector3f(
+            simulation.config.centerX / scale,
+            simulation.config.centerY / scale,
+            simulation.config.centerZ / scale
         )
 
         val cameraPos = Vector3f(
