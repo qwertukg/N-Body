@@ -87,7 +87,6 @@ class OrbitalDiskGenerator : FigureGenerator {
                 superMassiveStars +
                 stellarRemnants
 
-        println(result.count())
         return result
     }
 }
@@ -143,7 +142,6 @@ class MobiusStripGenerator : FigureGenerator {
         particles.add(star)
 
         // Добавляем звезду
-        println(particles.count())
         return particles
     }
 }

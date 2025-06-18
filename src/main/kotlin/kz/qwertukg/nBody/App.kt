@@ -1,10 +1,7 @@
 package kz.qwertukg.nBody
 
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
-import kz.qwertukg.nBody.nBodyParticleMesh.Particle
 import kz.qwertukg.nBody.nBodyParticleMesh.ParticleMeshSimulation
-import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
 import kz.qwertukg.nBody.nBodyParticleMesh.fromJson
 import kz.qwertukg.nBody.nBodyParticleMesh.generator.*
 import org.lwjgl.glfw.GLFW.*
@@ -13,18 +10,8 @@ import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 import org.joml.Vector3f
-import org.lwjgl.stb.STBTTAlignedQuad
-import org.lwjgl.stb.STBTTBakedChar
-import org.lwjgl.stb.STBTruetype.stbtt_BakeFontBitmap
-import org.lwjgl.stb.STBTruetype.stbtt_GetBakedQuad
-import org.lwjgl.system.MemoryStack
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.file.Files
-import java.nio.file.Paths
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.sqrt
 import kotlin.random.Random
 
 suspend fun main() = runBlocking {
