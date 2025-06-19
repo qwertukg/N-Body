@@ -10,7 +10,7 @@ import kotlin.math.PI
 data class SimulationConfig(
     val count: Int,
     val maxParticlesCount: Int = 2_000_000,
-    val screenW: Int = 3024,
+    val screenW: Int = 3024, // mac 3024×1964
     val screenH: Int = 1964,
     val gridSize: Int = 64,
     val worldSize: Float = 1000_000f,
@@ -22,7 +22,8 @@ data class SimulationConfig(
     val massUntil: Float =  25_000.01f,
     val isFullScreen: Boolean = true,
     val isDropOutOfBounds: Boolean = true,
-    val params: MutableMap<String, Float> = mutableMapOf()
+    val params: MutableMap<String, Float> = mutableMapOf(),
+    val starMass: Float,
 ) {
     val gridSizeX: Int = gridSize * screenW/screenH
     val gridSizeY: Int = gridSize
@@ -35,6 +36,8 @@ data class SimulationConfig(
     var centerX: Float = worldWidth * 0.5f
     var centerY: Float = worldHeight * 0.5f
     var centerZ: Float = worldDepth * 0.5f
+
+    var particles: List<List<Float>> = emptyList()
 }
 
 fun fromJson(path: String): SimulationConfig {

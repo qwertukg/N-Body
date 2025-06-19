@@ -2,11 +2,12 @@ package kz.qwertukg.nBody.nBodyParticleMesh.generator
 
 import kz.qwertukg.nBody.nBodyParticleMesh.Particle
 import kz.qwertukg.nBody.nBodyParticleMesh.SimulationConfig
+import kz.qwertukg.nBody.nBodyParticleMesh.fromJson
 import org.joml.Vector3f
 import kotlin.math.*
 import kotlin.random.Random
 
-val starMass = 1_000_000_000f
+val starMass = fromJson("src/main/resources/config.json").starMass
 
 /**
  * Генератор «орбитального диска».
@@ -659,40 +660,7 @@ class CylinderGenerator : FigureGenerator {
     }
 }
 
-class RandomOrbitsGenerator : FigureGenerator {
 
-    override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
-        val particles = mutableListOf<Particle>()
-
-        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
-        particles.add(star)
-
-        repeat(config.count) {
-            val x = Random.nextFloat() * config.worldWidth
-            val y = Random.nextFloat() * config.worldHeight
-            val z = Random.nextFloat() * config.worldDepth
-
-            val m = 1f
-            val particle = Particle(
-                x = x,
-                y = y,
-                z = z,
-                vx = 0f,
-                vy = 0f,
-                vz = 0f,
-                m = m,
-                r = sqrt(m)
-            )
-
-            particles.add(particle)
-        }
-
-        return particles
-    }
-}
 
 // --- Генератор «диска» (disk) ---
 class DiskGenerator : FigureGenerator {
@@ -756,5 +724,58 @@ class SphereGenerator : FigureGenerator {
         }
 
         return particles
+    }
+}
+
+// Volume fill
+class RandomOrbitsGenerator : FigureGenerator {
+    override fun generate(config: SimulationConfig): List<Particle> {
+        val cx = config.centerX
+        val cy = config.centerY
+        val cz = config.centerZ
+        val particles = mutableListOf<Particle>()
+
+        val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
+        particles.add(star)
+
+        repeat(config.count) {
+            val x = Random.nextFloat() * config.worldWidth
+            val y = Random.nextFloat() * config.worldHeight
+            val z = Random.nextFloat() * config.worldDepth
+            val m = 1f
+            Particle(
+                x = x,
+                y = y,
+                z = z,
+                vx = 0f,
+                vy = 0f,
+                vz = 0f,
+                m = m,
+                r = sqrt(m)
+            ).apply { particles.add(this) }
+        }
+
+        return particles
+    }
+}
+
+class CustomGenerator(val particles: List<List<Float>>) : FigureGenerator {
+    override fun generate(config: SimulationConfig): List<Particle> {
+        val cx = config.centerX
+        val cy = config.centerY
+        val cz = config.centerZ
+
+        return particles.map {
+            Particle(
+                x = cx + it[0],
+                y = cy + it[1],
+                z = cz + it[2],
+                vx = it[3],
+                vy = it[4],
+                vz = it[5],
+                m = it[6],
+                r = sqrt(it[6])
+            )
+        }
     }
 }

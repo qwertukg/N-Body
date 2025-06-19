@@ -10,6 +10,9 @@ import org.lwjgl.opengl.GL46.*
 import org.lwjgl.system.MemoryUtil.*
 import org.joml.Matrix4f
 import org.joml.Vector3f
+import java.lang.Byte.BYTES
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -35,6 +38,7 @@ suspend fun main() = runBlocking {
     generator.registerFigure(GLFW_KEY_R.toString(), RandomNoiseSphereGenerator())
     generator.registerFigure(GLFW_KEY_T.toString(), RandomOrbitsGenerator())
     generator.registerFigure(GLFW_KEY_Y.toString(), OrbitalDiskGenerator())
+    generator.registerFigure(GLFW_KEY_U.toString(), CustomGenerator(config.particles))
 
     val w = simulation.config.screenW
     val h = simulation.config.screenH
@@ -76,50 +80,55 @@ suspend fun main() = runBlocking {
     glEnable(GL_PROGRAM_POINT_SIZE)
 
     // Проверяем, что есть поддержка ARB_buffer_storage
-    require(getCapabilities().GL_ARB_buffer_storage) {
-        "Видео-драйвер не поддерживает GL_ARB_buffer_storage; " +
-                "persist-mapped VBO здесь работать не будет."
-    }
+//    require(getCapabilities().GL_ARB_buffer_storage) {
+//        "Видео-драйвер не поддерживает GL_ARB_buffer_storage; " +
+//                "persist-mapped VBO здесь работать не будет."
+//    }
 
     val vao = glGenVertexArrays()
     val vbo = glGenBuffers()
 
-    /* >>> VBO-BEGIN (обновлённый) <<< */
+    /* >>> VBO-BEGIN (кроссплатформенный) <<< */
     glBindVertexArray(vao)
     glBindBuffer(GL_ARRAY_BUFFER, vbo)
 
-    /* 1) Размер: текущее количество частиц + 20 % */
-    val safety      = (simulation.particleX.size * 1.2f).toInt()
+    /* 1) Вычисляем размер буфера: текущее N частиц + 20 % (с запасом) */
+    val safety       = (simulation.particleX.size * 4f).toInt()
     val maxParticles = maxOf(safety, simulation.particleX.size + 1_000)
-    val bytes        = maxParticles.toLong() * 3L * java.lang.Float.BYTES
+    val bytes        = maxParticles.toLong() * 3L * BYTES  // 3 координаты × 4 байта
 
-    /* 2) Flags для СОЗДАНИЯ буфера */
-    val storageFlags = GL_DYNAMIC_STORAGE_BIT or
-            GL_MAP_WRITE_BIT       or
-            GL_MAP_PERSISTENT_BIT  or
-            GL_MAP_COHERENT_BIT
-    glBufferStorage(GL_ARRAY_BUFFER, bytes, storageFlags)
-    check(glGetError() == GL_NO_ERROR) { "glBufferStorage error" }
+    /* 2) Проверяем поддержку persist-mapped VBO на данной платформе */
+    val hasPersistent = getCapabilities().GL_ARB_buffer_storage
 
-    /* 3) Flags только для map-операции */
-    val mapFlags = GL_MAP_WRITE_BIT or
-            GL_MAP_PERSISTENT_BIT or
-            GL_MAP_COHERENT_BIT
+    /* 3) Создаём буфер и получаем ByteBuffer-view */
+    val vboByte: ByteBuffer = if (hasPersistent) {
+        /* --- быстрый путь (Windows/Linux, OpenGL ≥ 4.4) --- */
+        val storageFlags = GL_DYNAMIC_STORAGE_BIT or
+                GL_MAP_WRITE_BIT       or
+                GL_MAP_PERSISTENT_BIT  or
+                GL_MAP_COHERENT_BIT
+        glBufferStorage(GL_ARRAY_BUFFER, bytes, storageFlags)
 
-    val vboByte = glMapBufferRange(GL_ARRAY_BUFFER, 0L, bytes, mapFlags, null)
-        ?: error("glMapBufferRange вернул null (mapFlags=$mapFlags)")
-    check(glGetError() == GL_NO_ERROR) { "glMapBufferRange error" }
+        val mapFlags = GL_MAP_WRITE_BIT       or
+                GL_MAP_PERSISTENT_BIT  or
+                GL_MAP_COHERENT_BIT
+        glMapBufferRange(GL_ARRAY_BUFFER, 0, bytes, mapFlags, null)
+            ?: error("glMapBufferRange вернул null")
+    } else {
+        /* --- фолбэк для macOS (OpenGL 4.1) --- */
+        glBufferData(GL_ARRAY_BUFFER, bytes, GL_DYNAMIC_DRAW)
+        memAlloc(bytes.toInt())          // клиент-буфер в RAM
+    }
 
-    /* 4) View-буфер */
-    val vboFloat = vboByte
-        .order(java.nio.ByteOrder.nativeOrder())
-        .asFloatBuffer()
+    /* 4) FloatBuffer-view для записи координат */
+    val vboFloat = vboByte.order(ByteOrder.nativeOrder()).asFloatBuffer()
 
-    /* 5) Описываем атрибут */
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * java.lang.Float.BYTES, 0)
+    /* 5) Описываем атрибут вершин */
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * BYTES, 0)
     glEnableVertexAttribArray(0)
     glBindVertexArray(0)
-    /* <<< VBO-END (обновлённый) <<< */
+    val hasPersistentVbo = hasPersistent
+    /* <<< VBO-END (кроссплатформенный) <<< */
 
     glEnable(GL_DEPTH_TEST)
 
@@ -229,7 +238,6 @@ suspend fun main() = runBlocking {
             config.dt -= dtStep
         }
 
-
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
         /* 1️⃣ Физика */
@@ -237,6 +245,19 @@ suspend fun main() = runBlocking {
 
         /* 2️⃣ Пишем точки прямо в persist-mapped VBO */
         val verts = simulation.writePositionsToVbo(vboFloat, scale)   // ← новая функция
+
+        if (!hasPersistent) {
+            /* ❶ Ограничиваем объём передаваемых данных ровно verts*3 float’ов */
+            vboFloat.limit(verts * 3)   // limit = нужное кол-во float’ов
+            vboFloat.position(0)        // позиция = 0 (rewind без обнуления limit)
+
+            /* ❷ Копируем в видеопамять одной командой */
+            glBindBuffer(GL_ARRAY_BUFFER, vbo)
+            glBufferSubData(GL_ARRAY_BUFFER, 0, vboFloat)   // FloatBuffer overload
+
+            /* ❸ Готовим буфер к следующему кадру */
+            vboFloat.clear()            // position = 0, limit = capacity
+        }
 
         /* 3️⃣ Обновляем камеру.
                Координаты первой частицы берём напрямую из симулятора

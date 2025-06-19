@@ -1,7 +1,8 @@
 {
+  "starMass": 1000000000,
   "count": 1000000,
-  "screenW": 3440,
-  "screenH": 1440,
+  "screenW": 3024,
+  "screenH": 1964,
   "gridSize": 64,
   "worldSize": 1000000,
   "g": 6.67430e-11,
@@ -12,5 +13,8 @@
   "massUntil": 2500.1,
   "isFullScreen": true,
   "isDropOutOfBounds": false,
-  "params": {}
+  "params": {},
+  "particles": [
+    [0, 0, 0, 1, 1, 1, 10]
+  ]
 }
