@@ -68,10 +68,10 @@ var focusIndex = 0
 
 fun ParticleMeshSimulation.nextFocus() {
     focusIndex++
-    focusIndex = if (focusIndex >= config.count) 0 else focusIndex
+    focusIndex = if (focusIndex >= particleX.count()) 0 else focusIndex
 }
 
 fun ParticleMeshSimulation.prevFocus() {
     focusIndex--
-    focusIndex = if (focusIndex < 0) config.count - 1 else focusIndex
+    focusIndex = if (focusIndex < 0) particleX.count() - 1 else focusIndex
 }

@@ -718,7 +718,6 @@ class RandomOrbitsGenerator : FigureGenerator {
 
 class CustomGenerator(val particles: List<List<Float>>) : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-
         return particles.map {
             Particle(
                 x = cx + it[0],

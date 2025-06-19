@@ -19,6 +19,7 @@ class Generator(val config: SimulationConfig) {
             ?: figureGenerators[figureGenerators.keys.first()] ?:
                 throw NotImplementedError("No figures")
         current = figureName
-        return if (!isWithBlackHole) gen.generate(config).drop(1) else gen.generate(config)
+        val system = if (!isWithBlackHole) gen.generate(config).drop(1) else gen.generate(config)
+        return system
     }
 }
