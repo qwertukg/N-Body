@@ -7,7 +7,12 @@ import org.joml.Vector3f
 import kotlin.math.*
 import kotlin.random.Random
 
-val starMass = fromJson("src/main/resources/config.json").starMass
+val conf = fromJson("src/main/resources/config.json")
+
+val starMass = conf.starMass
+val cx = conf.centerX
+val cy = conf.centerY
+val cz = conf.centerZ
 
 /**
  * Генератор «орбитального диска».
@@ -23,9 +28,7 @@ val starMass = fromJson("src/main/resources/config.json").starMass
 class OrbitalDiskGenerator : FigureGenerator {
 
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
+
 
         // ------------------------------------------------------------
         // 1. Центральная чёрная дыра
@@ -105,9 +108,6 @@ class OrbitalDiskGenerator : FigureGenerator {
  */
 class MobiusStripGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val majorR = config.params["majorRadius"] ?: config.maxRadius.toFloat()
         val halfW  = config.params["width"]       ?: config.minRadius.toFloat()
@@ -163,9 +163,6 @@ class MobiusStripGenerator : FigureGenerator {
  */
 class RidgesCylinderGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val baseR     = config.params["baseRadius"] ?: config.minRadius.toFloat()
         val halfH     = config.params["height"]     ?: config.maxRadius.toFloat()
@@ -211,9 +208,6 @@ class RidgesCylinderGenerator : FigureGenerator {
  */
 class SineWaveTorusGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val majorR   = config.params["majorRadius"] ?: config.maxRadius.toFloat()
         val tubeR    = config.params["tubeRadius"]  ?: config.minRadius.toFloat()
@@ -261,9 +255,6 @@ class SineWaveTorusGenerator : FigureGenerator {
  */
 class RandomNoiseSphereGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val baseR   = config.params["baseRadius"]     ?: config.maxRadius.toFloat()
         val amp     = config.params["noiseAmplitude"] ?: (baseR / 10f)
@@ -301,9 +292,6 @@ class RandomNoiseSphereGenerator : FigureGenerator {
 /** 1) Генератор пирамиды (основание квадратное, вершина в центре). */
 class PyramidGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         // baseSize — половина стороны основания
         val baseSize = config.params["baseSize"] ?: config.minRadius.toFloat()
@@ -344,9 +332,6 @@ class PyramidGenerator : FigureGenerator {
  */
 class RandomClustersGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val clusters = config.params["clusters"] ?: 100f
         val clusterRadius = config.params["clusterRadius"] ?: config.minRadius.toFloat()
@@ -433,10 +418,6 @@ class RandomClustersGenerator : FigureGenerator {
 /** 1) Генерация конуса (ось вдоль Z, вершина в центре, основание в плоскости z = -height). */
 class ConeGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
-
         // Пусть minRadius = радиус основания, maxRadius = высота конуса
         val baseRadius = config.minRadius
         val height = config.maxRadius
@@ -473,9 +454,6 @@ class ConeGenerator : FigureGenerator {
 /** 2) Генерация тора (ось вдоль Z, центр тора в (cx,cy,cz), радиус "трубы" = minRadius, радиус "кольца" = maxRadius). */
 class TorusGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         // Внутренний радиус "трубы" (rTube) и внешний радиус "бублика" (rMajor)
         val rTube = config.minRadius
@@ -511,9 +489,6 @@ class TorusGenerator : FigureGenerator {
 /** 3) Генерация полушара (ось вдоль Z, "нижнее" основание в плоскости z=0). */
 class HemisphereGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val rMax = config.maxRadius
 
@@ -549,9 +524,6 @@ class HemisphereGenerator : FigureGenerator {
 /** 4) Генерация "двойного конуса": конус вверх и конус вниз (ось вдоль Z, вершины соединены в центре). */
 class DoubleConeGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         val baseRadius = config.minRadius
         val height = config.maxRadius
@@ -589,9 +561,6 @@ class DoubleConeGenerator : FigureGenerator {
 
 class CubeGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         // Предположим, что minRadius < maxRadius
         val side = config.maxRadius
@@ -624,9 +593,6 @@ class CubeGenerator : FigureGenerator {
 
 class CylinderGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         // Радиус основания (minRadius) и "полувысота" (maxRadius)
         val radius = config.minRadius
@@ -665,9 +631,6 @@ class CylinderGenerator : FigureGenerator {
 // --- Генератор «диска» (disk) ---
 class DiskGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
         val particles = mutableListOf<Particle>()
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
@@ -693,9 +656,6 @@ class DiskGenerator : FigureGenerator {
 // --- Генератор «сферы» (ball) ---
 class SphereGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
         val particles = mutableListOf<Particle>()
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
         particles.add(star)
@@ -730,9 +690,6 @@ class SphereGenerator : FigureGenerator {
 // Volume fill
 class RandomOrbitsGenerator : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
         val particles = mutableListOf<Particle>()
 
         val star = Particle(cx, cy, cz, 0f, 0f, 0f, starMass, sqrt(starMass))
@@ -761,9 +718,6 @@ class RandomOrbitsGenerator : FigureGenerator {
 
 class CustomGenerator(val particles: List<List<Float>>) : FigureGenerator {
     override fun generate(config: SimulationConfig): List<Particle> {
-        val cx = config.centerX
-        val cy = config.centerY
-        val cz = config.centerZ
 
         return particles.map {
             Particle(

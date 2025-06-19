@@ -15,6 +15,7 @@
   "isDropOutOfBounds": false,
   "params": {},
   "particles": [
-    [0, 0, 0, 1, 1, 1, 10]
+    [0, 0, 0, 0, 0, 0, 10],
+    [0, 0, 1, 0, 0, 0, 10]
   ]
 }
